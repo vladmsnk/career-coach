@@ -55,21 +55,56 @@ app/
 ```
 
 ### Getting Started
-1. Create and activate a virtual environment (optional but recommended).
-2. Copy `.env.example` to `.env` and set `DATABASE_URL`.
-3. Install dependencies:
+1. Create and activate a virtual environment (recommended):
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+2. Copy `.env.example` to `.env` and ensure `DATABASE_URL` matches Docker Compose defaults:
+```bash
+cp .env.example .env
+# DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/chat_service
+```
+3. Start PostgreSQL using Docker:
+```bash
+docker compose up -d db
+```
+4. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
-4. Run the service:
+5. Initialize the database schema (creates tables):
+```bash
+PYTHONPATH=. python scripts/init_db.py
+```
+6. Run the service:
 ```bash
 uvicorn app.main:app --reload
+```
+7. Open API docs:
+```bash
+open http://127.0.0.1:8000/docs
 ```
 
 ### Notes
 - Endpoints are defined but return 501 Not Implemented.
 - Use cases and repositories are stubs raising NotImplementedError.
-- Database models and connections are scaffolded without migrations.
+- JWT helper is a stub (`app/infrastructure/auth/jwt.py`). Replace with a real implementation later.
+
+### Troubleshooting
+- ModuleNotFoundError: No module named 'app' when initializing DB:
+```bash
+PYTHONPATH=. python scripts/init_db.py
+```
+- Cannot connect to database: ensure the container is running and `DATABASE_URL` is correct:
+```bash
+docker compose ps
+```
+- Recreate tables from models (data loss):
+```bash
+docker compose down -v && docker compose up -d db
+PYTHONPATH=. python scripts/init_db.py
+```
 
 
 
