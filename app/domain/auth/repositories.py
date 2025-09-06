@@ -11,7 +11,11 @@ class UserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def create(self, email: str, password_hash: str) -> User:
+    async def get_by_login(self, login: str) -> Optional[User]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def create(self, login: str, email: str, password_hash: str) -> User:
         raise NotImplementedError
 
 
