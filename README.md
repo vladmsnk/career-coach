@@ -56,12 +56,20 @@ app/
 
 ### Getting Started
 1. Create and activate a virtual environment (optional but recommended).
-2. Copy `.env.example` to `.env` and set `DATABASE_URL`.
-3. Install dependencies:
+2. Start PostgreSQL using Docker:
+```bash
+docker compose up -d db
+```
+3. Copy `.env.example` to `.env` and adjust `DATABASE_URL` if needed.
+4. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
-4. Run the service:
+5. Run database migrations:
+```bash
+alembic upgrade head
+```
+6. Run the service:
 ```bash
 uvicorn app.main:app --reload
 ```
@@ -69,7 +77,7 @@ uvicorn app.main:app --reload
 ### Notes
 - Endpoints are defined but return 501 Not Implemented.
 - Use cases and repositories are stubs raising NotImplementedError.
-- Database models and connections are scaffolded without migrations.
+- Initial migration includes the `users` table for authentication.
 
 
 
