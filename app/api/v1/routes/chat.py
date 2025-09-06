@@ -1,5 +1,6 @@
 from uuid import UUID
 
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,27 +54,47 @@ async def chat_websocket(
     if not user_id:
         await websocket.close(code=1008)
         return
-    session = await repo.get_latest_session(UUID(user_id))
+    user_uuid = UUID(user_id)
+    session = await repo.get_latest_session(user_uuid)
+    messages = []
     if session:
         messages = await repo.list_messages(session.id)
         answers_count = len([m for m in messages if m.role == "user"])
         if answers_count >= len(QUESTIONS):
-            session = await repo.create_session(UUID(user_id))
+            session = await repo.create_session(user_uuid)
+            messages = []
             answers_count = 0
     else:
-        session = await repo.create_session(UUID(user_id))
+        session = await repo.create_session(user_uuid)
         answers_count = 0
 
+    for m in messages:
+        await websocket.send_json({"role": m.role, "content": m.content})
+
+    last_user_message = next((m.content for m in reversed(messages) if m.role == "user"), None)
     idx = answers_count
     while idx < len(QUESTIONS):
         question = QUESTIONS[idx]
         await repo.add_message(session.id, "bot", question["prompt"])
-        await websocket.send_json({"id": question["id"], "prompt": question["prompt"]})
-        try:
-            user_reply = await websocket.receive_text()
-        except WebSocketDisconnect:
-            return
-        await repo.add_message(session.id, "user", user_reply)
+        while True:
+            await websocket.send_json({"id": question["id"], "prompt": question["prompt"]})
+            try:
+                user_reply = await websocket.receive_text()
+            except WebSocketDisconnect:
+                return
+            if last_user_message is not None and user_reply == last_user_message:
+                await websocket.send_json({"error": "duplicate"})
+                continue
+            await repo.add_message(session.id, "user", user_reply)
+            last_user_message = user_reply
+            while True:
+                try:
+                    await asyncio.wait_for(websocket.receive_text(), timeout=0.01)
+                except asyncio.TimeoutError:
+                    break
+                except WebSocketDisconnect:
+                    return
+            break
         idx += 1
     await websocket.send_json({"event": "finished"})
     await websocket.close()
