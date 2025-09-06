@@ -16,13 +16,13 @@ class InMemoryUserRepository(UserRepository):
     def __init__(self) -> None:
         self.users: dict[str, User] = {}
 
-    async def get_by_email(self, email: str) -> User | None:
+    async def get_by_email(self, email: str):
         for user in self.users.values():
             if user.email == email:
                 return user
         return None
 
-    async def get_by_login(self, login: str) -> User | None:
+    async def get_by_login(self, login: str):
         return self.users.get(login)
 
     async def create(self, login: str, email: str, password_hash: str) -> User:

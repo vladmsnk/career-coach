@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -59,7 +59,7 @@ class SqlAlchemyChatRepository(ChatRepository):
             for m in models
         ]
 
-    async def get_latest_session(self, user_id: UUID) -> ChatSession | None:
+    async def get_latest_session(self, user_id: UUID) -> Optional[ChatSession]:
         stmt = (
             select(ChatSessionModel)
             .where(ChatSessionModel.user_id == str(user_id))
