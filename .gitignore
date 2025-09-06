@@ -1,0 +1,13 @@
+.env
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.venv/
+.vscode/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.development
+.env.test
+.idea  
