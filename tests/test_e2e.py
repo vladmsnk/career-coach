@@ -13,7 +13,7 @@ from testcontainers.postgres import PostgresContainer
 def _run_server() -> None:
     import uvicorn
 
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, log_level="error")
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, log_level="info")
 
 
 def _wait_for_server(url: str, timeout: float = 15) -> None:
@@ -29,7 +29,11 @@ def _wait_for_server(url: str, timeout: float = 15) -> None:
 def test_successful_dialog() -> None:
     with PostgresContainer("postgres:15") as postgres:
         db_url = postgres.get_connection_url()
-        async_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
+        # Normalize to async driver regardless of original driver
+        async_url = (
+            db_url.replace("postgresql+psycopg2://", "postgresql+asyncpg://")
+            .replace("postgresql://", "postgresql+asyncpg://")
+        )
         os.environ["DATABASE_URL"] = async_url
 
         alembic_cfg = Config("alembic.ini")
@@ -54,14 +58,22 @@ def test_successful_dialog() -> None:
 
             async def _chat() -> None:
                 import websockets
+                import logging
+
+                logger = logging.getLogger("test_e2e")
+                logger.setLevel(logging.INFO)
 
                 uri = f"ws://127.0.0.1:8000/api/v1/chat/ws?token={token}"
                 async with websockets.connect(uri) as ws:
                     for answer in ["IT", "Developer", "5"]:
-                        data = json.loads(await ws.recv())
-                        assert "id" in data
+                        raw = await ws.recv()
+                        data = json.loads(raw)
+                        logger.info("received question: %s", data)
+                        assert "id" in data, f"unexpected message: {data}"
+                        logger.info("send answer: %s", answer)
                         await ws.send(answer)
                     final = json.loads(await ws.recv())
+                    logger.info("final: %s", final)
                     assert final["event"] == "finished"
 
             asyncio.run(_chat())
