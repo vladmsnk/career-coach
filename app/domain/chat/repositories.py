@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from .entities import ChatSession, Message
@@ -16,6 +16,10 @@ class ChatRepository(ABC):
 
     @abstractmethod
     async def list_messages(self, session_id: UUID) -> List[Message]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_latest_session(self, user_id: UUID) -> Optional[ChatSession]:
         raise NotImplementedError
 
 
