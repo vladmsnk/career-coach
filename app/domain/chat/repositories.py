@@ -18,5 +18,9 @@ class ChatRepository(ABC):
     async def list_messages(self, session_id: UUID) -> List[Message]:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_latest_session(self, user_id: UUID) -> ChatSession | None:
+        raise NotImplementedError
+
 
 
