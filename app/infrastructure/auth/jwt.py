@@ -4,6 +4,7 @@ import hmac
 import hashlib
 import time
 from datetime import timedelta
+from typing import Optional
 
 from app.core.settings import settings
 
@@ -14,7 +15,7 @@ def _b64encode(data: bytes) -> bytes:
     return base64.urlsafe_b64encode(data).rstrip(b"=")
 
 
-def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
+def create_access_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
     header = {"alg": "HS256", "typ": "JWT"}
     expire = int(time.time() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)).total_seconds())
     payload = {"sub": subject, "exp": expire}
