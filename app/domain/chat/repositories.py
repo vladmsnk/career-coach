@@ -38,9 +38,9 @@ class ChatRepository(ABC):
         self,
         session_id: UUID,
         *,
-        status: str | None = None,
-        question_index: int | None = None,
-        answers_count: int | None = None,
+        status: Optional[str] = None,
+        question_index: Optional[int] = None,
+        answers_count: Optional[int] = None,
     ) -> ChatSession:
         raise NotImplementedError
 
