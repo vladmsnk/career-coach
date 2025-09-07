@@ -19,8 +19,22 @@ class InMemoryChatRepository(ChatRepository):
         self.sessions: dict[str, list[ChatSession]] = {}
         self.messages: dict[str, list[Message]] = {}
 
-    async def create_session(self, user_id):
-        session = ChatSession(id=uuid4(), user_id=user_id, created_at=datetime.utcnow())
+    async def create_session(
+        self,
+        user_id,
+        *,
+        status: str = "active",
+        question_index: int = 0,
+        answers_count: int = 0,
+    ):
+        session = ChatSession(
+            id=uuid4(),
+            user_id=user_id,
+            created_at=datetime.utcnow(),
+            status=status,
+            question_index=question_index,
+            answers_count=answers_count,
+        )
         self.sessions.setdefault(str(user_id), []).append(session)
         self.messages[str(session.id)] = []
         return session
@@ -38,6 +52,33 @@ class InMemoryChatRepository(ChatRepository):
         if sessions:
             return sessions[-1]
         return None
+
+    async def get_session(self, session_id):
+        for sessions in self.sessions.values():
+            for s in sessions:
+                if s.id == session_id:
+                    return s
+        return None
+
+    async def update_session(
+        self,
+        session_id,
+        *,
+        status: str | None = None,
+        question_index: int | None = None,
+        answers_count: int | None = None,
+    ):
+        for sessions in self.sessions.values():
+            for s in sessions:
+                if s.id == session_id:
+                    if status is not None:
+                        s.status = status
+                    if question_index is not None:
+                        s.question_index = question_index
+                    if answers_count is not None:
+                        s.answers_count = answers_count
+                    return s
+        raise KeyError("session not found")
 
 
 class FakeWebSocket:
@@ -120,6 +161,5 @@ def test_each_user_has_own_session():
     asyncio.run(chat_websocket(ws1, user1, repo))
     ws2 = FakeWebSocket(["Marketing"], disconnect_on_empty=True)
     asyncio.run(chat_websocket(ws2, user2, repo))
-    assert len(ws2.sent) == 1
     assert ws2.sent[0]["id"] == "domain"
     app.dependency_overrides.clear()

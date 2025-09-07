@@ -8,6 +8,9 @@ class ChatSession:
     id: UUID
     user_id: UUID
     created_at: datetime
+    status: str
+    question_index: int
+    answers_count: int
 
 
 @dataclass
