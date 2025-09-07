@@ -3,6 +3,7 @@ import sys
 import asyncio
 from datetime import datetime
 from uuid import uuid4
+from typing import Optional
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -64,9 +65,9 @@ class InMemoryChatRepository(ChatRepository):
         self,
         session_id,
         *,
-        status: str | None = None,
-        question_index: int | None = None,
-        answers_count: int | None = None,
+        status: Optional[str] = None,
+        question_index: Optional[int] = None,
+        answers_count: Optional[int] = None,
     ):
         for sessions in self.sessions.values():
             for s in sessions:

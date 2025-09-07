@@ -86,8 +86,8 @@ async def chat_websocket(
         return
     user_uuid = UUID(user_id)
     session = await repo.get_latest_session(user_uuid)
-    if not session or session.answers_count >= len(QUESTIONS):
-        session = await repo.create_session(user_uuid)
+    if not session or session.answers_count >= len(QUESTIONS) or session.status == "finished":
+        session = await repo.create_session(user_uuid, question_index=1)
     user_messages = await repo.list_messages(session.id)
 
     for i in range(1, session.question_index + 1):
@@ -97,7 +97,7 @@ async def chat_websocket(
             await websocket.send_json(
                 {"role": "user", "content": user_messages[i - 1].content}
             )
-        else:
+        elif i == session.question_index:
             await websocket.send_json({"id": question["id"], "prompt": question["prompt"]})
 
     last_user_message = (
