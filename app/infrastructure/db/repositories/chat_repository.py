@@ -15,12 +15,32 @@ class SqlAlchemyChatRepository(ChatRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create_session(self, user_id: UUID) -> ChatSession:
-        model = ChatSessionModel(user_id=str(user_id), created_at=datetime.utcnow())
+    async def create_session(
+        self,
+        user_id: UUID,
+        *,
+        status: str = "active",
+        question_index: int = 0,
+        answers_count: int = 0,
+    ) -> ChatSession:
+        model = ChatSessionModel(
+            user_id=str(user_id),
+            created_at=datetime.utcnow(),
+            status=status,
+            question_index=question_index,
+            answers_count=answers_count,
+        )
         self._session.add(model)
         await self._session.commit()
         await self._session.refresh(model)
-        return ChatSession(id=UUID(model.id), user_id=UUID(model.user_id), created_at=model.created_at)
+        return ChatSession(
+            id=UUID(model.id),
+            user_id=UUID(model.user_id),
+            created_at=model.created_at,
+            status=model.status,
+            question_index=model.question_index,
+            answers_count=model.answers_count,
+        )
 
     async def add_message(self, session_id: UUID, role: str, content: str) -> Message:
         model = MessageModel(
@@ -69,8 +89,58 @@ class SqlAlchemyChatRepository(ChatRepository):
         result = await self._session.execute(stmt)
         model = result.scalars().first()
         if model:
-            return ChatSession(id=UUID(model.id), user_id=UUID(model.user_id), created_at=model.created_at)
+            return ChatSession(
+                id=UUID(model.id),
+                user_id=UUID(model.user_id),
+                created_at=model.created_at,
+                status=model.status,
+                question_index=model.question_index,
+                answers_count=model.answers_count,
+            )
         return None
+
+    async def get_session(self, session_id: UUID) -> Optional[ChatSession]:
+        stmt = select(ChatSessionModel).where(ChatSessionModel.id == str(session_id))
+        result = await self._session.execute(stmt)
+        model = result.scalars().first()
+        if model:
+            return ChatSession(
+                id=UUID(model.id),
+                user_id=UUID(model.user_id),
+                created_at=model.created_at,
+                status=model.status,
+                question_index=model.question_index,
+                answers_count=model.answers_count,
+            )
+        return None
+
+    async def update_session(
+        self,
+        session_id: UUID,
+        *,
+        status: Optional[str] = None,
+        question_index: Optional[int] = None,
+        answers_count: Optional[int] = None,
+    ) -> ChatSession:
+        stmt = select(ChatSessionModel).where(ChatSessionModel.id == str(session_id))
+        result = await self._session.execute(stmt)
+        model = result.scalars().one()
+        if status is not None:
+            model.status = status
+        if question_index is not None:
+            model.question_index = question_index
+        if answers_count is not None:
+            model.answers_count = answers_count
+        await self._session.commit()
+        await self._session.refresh(model)
+        return ChatSession(
+            id=UUID(model.id),
+            user_id=UUID(model.user_id),
+            created_at=model.created_at,
+            status=model.status,
+            question_index=model.question_index,
+            answers_count=model.answers_count,
+        )
 
 
 

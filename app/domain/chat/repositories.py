@@ -7,7 +7,14 @@ from .entities import ChatSession, Message
 
 class ChatRepository(ABC):
     @abstractmethod
-    async def create_session(self, user_id: UUID) -> ChatSession:
+    async def create_session(
+        self,
+        user_id: UUID,
+        *,
+        status: str = "active",
+        question_index: int = 0,
+        answers_count: int = 0,
+    ) -> ChatSession:
         raise NotImplementedError
 
     @abstractmethod
@@ -20,6 +27,21 @@ class ChatRepository(ABC):
 
     @abstractmethod
     async def get_latest_session(self, user_id: UUID) -> Optional[ChatSession]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_session(self, session_id: UUID) -> Optional[ChatSession]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_session(
+        self,
+        session_id: UUID,
+        *,
+        status: Optional[str] = None,
+        question_index: Optional[int] = None,
+        answers_count: Optional[int] = None,
+    ) -> ChatSession:
         raise NotImplementedError
 
 
