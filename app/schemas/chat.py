@@ -12,6 +12,7 @@ class StartChatSessionRequest(BaseModel):
 class StartChatSessionResponse(BaseModel):
     session_id: UUID
     created_at: datetime
+    question: str
 
 
 class SubmitMessageRequest(BaseModel):
@@ -30,6 +31,3 @@ class BotQuestionResponse(BaseModel):
     session_id: UUID
     question: str
     context: Optional[dict] = None
-
-
-
