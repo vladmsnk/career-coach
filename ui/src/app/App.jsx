@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AuthPage from '../pages/AuthPage.jsx';
-import HomePage from '../pages/HomePage.jsx';
+import ChatPage from '../pages/ChatPage.jsx';
 
 function App() {
   const [token, setToken] = useState(null);
@@ -26,7 +26,7 @@ function App() {
     return <AuthPage onAuth={handleAuth} />;
   }
 
-  return <HomePage onLogout={handleLogout} />;
+  return <ChatPage token={token} onLogout={handleLogout} />;
 }
 
 export default App;
