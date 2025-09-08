@@ -1,4 +1,5 @@
 from uuid import UUID
+from typing import Optional, Tuple
 
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
@@ -17,6 +18,7 @@ from app.schemas.chat import (
 from app.core.db import get_db_session
 from app.domain.chat.questions import QUESTIONS
 from app.domain.chat.repositories import ChatRepository
+from app.domain.chat.entities import ChatSession
 from app.infrastructure.auth.jwt import decode_access_token
 from app.infrastructure.db.repositories.chat_repository import SqlAlchemyChatRepository
 
@@ -28,15 +30,81 @@ def get_chat_repository(session: AsyncSession = Depends(get_db_session)) -> Chat
     return SqlAlchemyChatRepository(session)
 
 
-async def safe_send_json(websocket: WebSocket, data: dict) -> bool:
-    """Safely send JSON data through WebSocket, return False if connection is closed"""
-    try:
-        await websocket.send_json(data)
+class WebSocketHandler:
+    """Handles WebSocket communication for chat sessions"""
+    
+    def __init__(self, websocket: WebSocket, repo: ChatRepository):
+        self.websocket = websocket
+        self.repo = repo
+        
+    async def send_json(self, data: dict) -> bool:
+        """Safely send JSON data through WebSocket"""
+        try:
+            await self.websocket.send_json(data)
+            return True
+        except (WebSocketDisconnect, Exception):
+            return False
+    
+    async def receive_text(self) -> str:
+        """Receive text with proper disconnect handling"""
+        return await self.websocket.receive_text()
+    
+    async def send_previous_messages(self, session: ChatSession, user_messages: list) -> bool:
+        """Send chat history to restore session (only completed Q&A pairs)"""
+        for i in range(session.answers_count):
+            if i < len(user_messages):
+                question = QUESTIONS[i]
+                # Send previous Q&A pair
+                if not await self.send_json({"role": "bot", "content": question["prompt"]}):
+                    return False
+                if not await self.send_json({"role": "user", "content": user_messages[i].content}):
+                    return False
         return True
-    except WebSocketDisconnect:
+    
+    async def handle_question_cycle(self, question_data: dict, session_id: UUID, last_user_message: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+        """Handle a single question-answer cycle"""
+        while True:
+            # Send question
+            if not await self.send_json({"id": question_data["id"], "prompt": question_data["prompt"]}):
+                return None, None
+                
+            # Receive answer
+            try:
+                user_reply = await self.receive_text()
+            except WebSocketDisconnect:
+                return None, None
+            
+            # Check for duplicate answer
+            if last_user_message and user_reply == last_user_message:
+                if not await self.send_json({"error": "duplicate"}):
+                    return None, None
+                continue
+            
+            # Save message and return
+            await self.repo.add_message(session_id, "user", user_reply)
+            return user_reply, user_reply
+    
+    async def complete_session(self, session_id: UUID) -> bool:
+        """Mark session as finished and send completion message"""
+        await self.repo.update_session(session_id, status="finished")
+        if await self.send_json({"event": "finished"}):
+            await self.websocket.close()
+            return True
         return False
-    except Exception:
-        return False
+
+
+def authenticate_user(token: str) -> Optional[UUID]:
+    """Authenticate user and return UUID"""
+    user_id = decode_access_token(token)
+    return UUID(user_id) if user_id else None
+
+
+async def get_or_create_session(user_uuid: UUID, repo: ChatRepository) -> ChatSession:
+    """Get existing active session or create new one"""
+    session = await repo.get_latest_session(user_uuid)
+    if not session or session.answers_count >= len(QUESTIONS) or session.status == "finished":
+        session = await repo.create_session(user_uuid, question_index=1)
+    return session
 
 
 @router.post("/sessions", response_model=StartChatSessionResponse, status_code=201)
@@ -91,85 +159,45 @@ async def chat_websocket(
     repo: ChatRepository = Depends(get_chat_repository),
 ):
     try:
+        # 1. Initialize connection
         await websocket.accept()
-        user_id = decode_access_token(token)
-        if not user_id:
+        user_uuid = authenticate_user(token)
+        if not user_uuid:
             await websocket.close(code=1008)
             return
-        user_uuid = UUID(user_id)
-        session = await repo.get_latest_session(user_uuid)
-        if not session or session.answers_count >= len(QUESTIONS) or session.status == "finished":
-            session = await repo.create_session(user_uuid, question_index=1)
+        
+        handler = WebSocketHandler(websocket, repo)
+        
+        # 2. Get or create session
+        session = await get_or_create_session(user_uuid, repo)
+        
+        # 3. Send chat history (only completed Q&A pairs)
         user_messages = await repo.list_messages(session.id)
-
-        for i in range(1, session.question_index + 1):
-            question = QUESTIONS[i - 1]
-            if i <= session.answers_count and i <= len(user_messages):
-                if not await safe_send_json(websocket, {"role": "bot", "content": question["prompt"]}):
-                    return
-                if not await safe_send_json(websocket, {"role": "user", "content": user_messages[i - 1].content}):
-                    return
-            elif i == session.question_index:
-                if not await safe_send_json(websocket, {"id": question["id"], "prompt": question["prompt"]}):
-                    return
-
-        last_user_message = (
-            user_messages[-1].content if user_messages and session.answers_count > 0 else None
-        )
-
-        if session.question_index > session.answers_count:
-            question = QUESTIONS[session.question_index - 1]
-            while True:
-                try:
-                    user_reply = await websocket.receive_text()
-                except WebSocketDisconnect:
-                    return
-                if last_user_message is not None and user_reply == last_user_message:
-                    if not await safe_send_json(websocket, {"error": "duplicate"}):
-                        return
-                    if not await safe_send_json(websocket, {"id": question["id"], "prompt": question["prompt"]}):
-                        return
-                    continue
-                await repo.add_message(session.id, "user", user_reply)
-                last_user_message = user_reply
-                session = await repo.update_session(
-                    session.id, answers_count=session.answers_count + 1
-                )
-                break
-
-        idx = session.answers_count
-        while idx < len(QUESTIONS):
-            question = QUESTIONS[idx]
-            while True:
-                if not await safe_send_json(websocket, {"id": question["id"], "prompt": question["prompt"]}):
-                    return
-                await repo.update_session(session.id, question_index=idx + 1)
-                try:
-                    user_reply = await websocket.receive_text()
-                except WebSocketDisconnect:
-                    return
-                if last_user_message is not None and user_reply == last_user_message:
-                    if not await safe_send_json(websocket, {"error": "duplicate"}):
-                        return
-                    continue
-                await repo.add_message(session.id, "user", user_reply)
-                last_user_message = user_reply
-                await repo.update_session(session.id, answers_count=idx + 1)
-                break
-            idx += 1
-        await repo.update_session(session.id, status="finished")
-        if not await safe_send_json(websocket, {"event": "finished"}):
+        if not await handler.send_previous_messages(session, user_messages):
             return
-        await websocket.close()
+        
+        # 4. Handle all remaining questions (starting from answers_count)
+        last_user_message = user_messages[-1].content if user_messages and session.answers_count > 0 else None
+        
+        for idx in range(session.answers_count, len(QUESTIONS)):
+            question = QUESTIONS[idx]
+            await repo.update_session(session.id, question_index=idx + 1)
+            
+            user_reply, last_user_message = await handler.handle_question_cycle(question, session.id, last_user_message)
+            if user_reply is None:  # Connection closed
+                return
+            
+            await repo.update_session(session.id, answers_count=idx + 1)
+        
+        # 5. Complete session
+        await handler.complete_session(session.id)
         
     except WebSocketDisconnect:
-        # Клиент отключился - это нормально, не логируем как ошибку
+        # Normal disconnect - no logging needed
         pass
     except Exception as e:
-        # Логируем только неожиданные ошибки
-        print(f"Unexpected error in WebSocket: {e}")
+        print(f"Unexpected WebSocket error: {e}")
         try:
             await websocket.close(code=1011)
         except:
             pass
-
