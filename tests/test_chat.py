@@ -35,6 +35,8 @@ class InMemoryChatRepository(ChatRepository):
             status=status,
             question_index=question_index,
             answers_count=answers_count,
+            current_module="context",
+            collected_data={},
         )
         self.sessions.setdefault(str(user_id), []).append(session)
         self.messages[str(session.id)] = []
@@ -81,6 +83,20 @@ class InMemoryChatRepository(ChatRepository):
                     return s
         raise KeyError("session not found")
 
+    async def update_session_data(
+        self,
+        session_id,
+        question_id: str,
+        answer: str,
+    ) -> None:
+        """Update collected_data with new question-answer pair"""
+        for sessions in self.sessions.values():
+            for s in sessions:
+                if s.id == session_id:
+                    s.collected_data[question_id] = answer
+                    return
+        raise KeyError("session not found")
+
 
 class FakeWebSocket:
     def __init__(self, inputs: list[str], disconnect_on_empty: bool = False, delay: float = 0.0) -> None:
@@ -116,10 +132,14 @@ def test_chat_flow():
     app.dependency_overrides[get_chat_repository] = lambda: repo
     user_id = str(uuid4())
     token = create_access_token(user_id)
-    ws = FakeWebSocket(["IT", "Developer", "5"], delay=0.02)
+    # Test first 3 questions - need to provide 15 answers for full interview now
+    answers = ["IT", "Developer", "5", "3", "Проект 1", "IT", "Backend", "Техническая работа", "Senior", "100000", "Программирование", "Microsoft Excel", "Коммуникация", "ВУЗ", "React"]
+    ws = FakeWebSocket(answers, delay=0.02)
     asyncio.run(chat_websocket(ws, token, repo))
     prompts = [m["id"] for m in ws.sent if "id" in m]
-    assert prompts == ["domain", "position", "years"]
+    # Check that we have all 15 questions
+    expected_ids = [q["id"] for q in QUESTIONS]
+    assert prompts == expected_ids
     assert ws.sent[-1]["event"] == "finished"
     app.dependency_overrides.clear()
 
@@ -131,12 +151,16 @@ def test_resume_session_returns_previous_messages():
     token = create_access_token(user_id)
     ws1 = FakeWebSocket(["IT"], disconnect_on_empty=True)
     asyncio.run(chat_websocket(ws1, token, repo))
-    ws2 = FakeWebSocket(["Developer", "5"], delay=0.02)
+    # Provide remaining answers to complete the interview
+    remaining_answers = ["Developer", "5", "3", "Проект 1", "IT", "Backend", "Техническая работа", "Senior", "100000", "Программирование", "Microsoft Excel", "Коммуникация", "ВУЗ", "React"]
+    ws2 = FakeWebSocket(remaining_answers, delay=0.02)
     asyncio.run(chat_websocket(ws2, token, repo))
     assert ws2.sent[0] == {"role": "bot", "content": QUESTIONS[0]["prompt"]}
     assert ws2.sent[1] == {"role": "user", "content": "IT"}
     prompts = [m["id"] for m in ws2.sent if "id" in m]
-    assert prompts == ["position", "years"]
+    # Should have remaining 14 questions (all except the first one)
+    expected_ids = [q["id"] for q in QUESTIONS[1:]]
+    assert prompts == expected_ids
     assert ws2.sent[-1]["event"] == "finished"
     app.dependency_overrides.clear()
 
@@ -146,10 +170,21 @@ def test_duplicate_messages_reask_question():
     app.dependency_overrides[get_chat_repository] = lambda: repo
     user_id = str(uuid4())
     token = create_access_token(user_id)
-    ws = FakeWebSocket(["IT", "IT", "Developer", "5"], delay=0.02)
+    # Test cross-question duplicate: answer "IT" to first question, then "IT" to second question (should trigger duplicate)
+    all_answers = ["IT", "IT", "Developer", "5", "3", "Проект 1", "IT", "Backend", "Техническая работа", "Senior", "100000", "Программирование", "Microsoft Excel", "Коммуникация", "ВУЗ", "React"]
+    ws = FakeWebSocket(all_answers, delay=0.02)
     asyncio.run(chat_websocket(ws, token, repo))
     prompts = [m["id"] for m in ws.sent if "id" in m]
-    assert prompts == ["domain", "position", "position", "years"]
+    # Should have: first question, second question, second question again (due to duplicate), then remaining
+    expected_prompts = [
+        QUESTIONS[0]["id"],  # current_sphere
+        QUESTIONS[1]["id"],  # current_position  
+        QUESTIONS[1]["id"],  # current_position (repeated due to duplicate)
+    ] + [q["id"] for q in QUESTIONS[2:]]  # remaining questions
+    assert prompts == expected_prompts
+    errors = [m for m in ws.sent if m.get("error") == "duplicate"]
+    assert len(errors) == 1
+    assert ws.sent[-1]["event"] == "finished"
     app.dependency_overrides.clear()
 
 
@@ -162,5 +197,6 @@ def test_each_user_has_own_session():
     asyncio.run(chat_websocket(ws1, user1, repo))
     ws2 = FakeWebSocket(["Marketing"], disconnect_on_empty=True)
     asyncio.run(chat_websocket(ws2, user2, repo))
-    assert ws2.sent[0]["id"] == "domain"
+    # Each user should start with the first question
+    assert ws2.sent[0]["id"] == QUESTIONS[0]["id"]
     app.dependency_overrides.clear()
