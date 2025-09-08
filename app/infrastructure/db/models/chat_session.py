@@ -3,6 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, Integer
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.dialects.postgresql import JSON
 
 from app.infrastructure.db.base import Base
 
@@ -16,6 +17,8 @@ class ChatSessionModel(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     question_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     answers_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    current_module: Mapped[str] = mapped_column(String(20), nullable=False, default="context")
+    collected_data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
 
 
