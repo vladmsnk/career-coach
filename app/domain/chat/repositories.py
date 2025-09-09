@@ -44,5 +44,15 @@ class ChatRepository(ABC):
     ) -> ChatSession:
         raise NotImplementedError
 
+    @abstractmethod
+    async def update_session_data(
+        self,
+        session_id: UUID,
+        question_id: str,
+        answer: str,
+    ) -> None:
+        """Update collected_data with new question-answer pair"""
+        raise NotImplementedError
+
 
 

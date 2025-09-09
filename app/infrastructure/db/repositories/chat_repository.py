@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.chat.entities import ChatSession, Message
@@ -96,6 +96,8 @@ class SqlAlchemyChatRepository(ChatRepository):
                 status=model.status,
                 question_index=model.question_index,
                 answers_count=model.answers_count,
+                current_module=model.current_module,
+                collected_data=model.collected_data,
             )
         return None
 
@@ -111,6 +113,8 @@ class SqlAlchemyChatRepository(ChatRepository):
                 status=model.status,
                 question_index=model.question_index,
                 answers_count=model.answers_count,
+                current_module=model.current_module,
+                collected_data=model.collected_data,
             )
         return None
 
@@ -140,7 +144,28 @@ class SqlAlchemyChatRepository(ChatRepository):
             status=model.status,
             question_index=model.question_index,
             answers_count=model.answers_count,
+            current_module=model.current_module,
+            collected_data=model.collected_data,
         )
+
+    async def update_session_data(
+        self,
+        session_id: UUID,
+        question_id: str,
+        answer: str,
+    ) -> None:
+        """Update collected_data with new question-answer pair"""
+        # Get current session
+        stmt = select(ChatSessionModel).where(ChatSessionModel.id == str(session_id))
+        result = await self._session.execute(stmt)
+        model = result.scalars().one()
+        
+        # Update collected_data
+        current_data = model.collected_data or {}
+        current_data[question_id] = answer
+        model.collected_data = current_data
+        
+        await self._session.commit()
 
 
 
