@@ -59,11 +59,11 @@ class TestSessionDataFunctionality:
         
         # Update session data with multiple questions
         questions_and_answers = [
-            ("current_sphere", "IT"),
-            ("current_position", "Senior Developer"),
-            ("years_in_sphere", "5"),
-            ("target_sphere", "IT"),
-            ("preferred_activities", "Programming, Mentoring")
+            ("current_position", "Бэкенд-разработчик"),
+            ("years_in_position", "5"),
+            ("target_specialization", "Full-stack Developer"),
+            ("preferred_activities", "Разработка ПО"),
+            ("current_skills", "Программирование")
         ]
         
         for question_id, answer in questions_and_answers:
@@ -84,8 +84,8 @@ class TestSessionDataFunctionality:
         session = await repo.create_session(user_id)
         
         # Add collected data
-        await repo.update_session_data(session.id, "current_sphere", "IT")
-        await repo.update_session_data(session.id, "current_position", "Developer")
+        await repo.update_session_data(session.id, "current_position", "Бэкенд-разработчик")
+        await repo.update_session_data(session.id, "years_in_position", "3")
         
         # Update other session fields - data should persist
         updated_session = await repo.update_session(
@@ -96,8 +96,8 @@ class TestSessionDataFunctionality:
         )
         
         # Verify collected data is preserved
-        assert updated_session.collected_data["current_sphere"] == "IT"
-        assert updated_session.collected_data["current_position"] == "Developer"
+        assert updated_session.collected_data["current_position"] == "Бэкенд-разработчик"
+        assert updated_session.collected_data["years_in_position"] == "3"
         assert updated_session.question_index == 2
         assert updated_session.answers_count == 1
         

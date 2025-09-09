@@ -2,6 +2,7 @@ import os
 import time
 import json
 import asyncio
+import uuid
 from multiprocessing import Process
 
 import requests
@@ -11,7 +12,18 @@ from testcontainers.postgres import PostgresContainer
 
 
 def _run_server() -> None:
+    import sys
+    import importlib
     import uvicorn
+    
+    # Force reload questions module to avoid caching issues in subprocess
+    try:
+        # First import the module if not loaded
+        import app.domain.chat.questions
+        # Then force reload it to get latest changes
+        importlib.reload(app.domain.chat.questions)
+    except ImportError:
+        pass  # Module might not be available in subprocess
 
     uvicorn.run("app.main:app", host="127.0.0.1", port=8000, log_level="info")
 
@@ -27,6 +39,7 @@ def _wait_for_server(url: str, timeout: float = 15) -> None:
 
 
 def test_successful_dialog() -> None:
+    """E2E test for complete chat dialog with new IT-focused questions"""
     with PostgresContainer("postgres:15") as postgres:
         db_url = postgres.get_connection_url()
         # Normalize to async driver regardless of original driver
@@ -45,13 +58,15 @@ def test_successful_dialog() -> None:
         try:
             _wait_for_server("http://127.0.0.1:8000/docs")
 
-            payload = {"login": "user", "email": "user@example.com", "password": "secret"}
+            # Generate unique user data for each test run
+            test_id = str(uuid.uuid4())[:8]
+            payload = {"login": f"user_{test_id}", "email": f"user_{test_id}@example.com", "password": "secret"}
             r = requests.post("http://127.0.0.1:8000/api/v1/auth/register", json=payload)
             assert r.status_code == 201
 
             r = requests.post(
                 "http://127.0.0.1:8000/api/v1/auth/login",
-                json={"login": "user", "password": "secret"},
+                json={"login": f"user_{test_id}", "password": "secret"},
             )
             assert r.status_code == 200
             token = r.json()["access_token"]
@@ -65,11 +80,12 @@ def test_successful_dialog() -> None:
 
                 uri = f"ws://127.0.0.1:8000/api/v1/chat/ws?token={token}"
                 async with websockets.connect(uri) as ws:
-                    # Answer all 15 questions for complete interview
+                    # Answer all 12 questions for complete interview
                     answers = [
-                        "IT", "Developer", "5", "3", "Проект 1", 
-                        "IT", "Backend", "Техническая работа", "Senior", "100000", 
-                        "Программирование", "Microsoft Excel", "Коммуникация", "ВУЗ", "React"
+                        "Бэкенд-разработчик", "5", "Разработал микросервисы на Python",
+                        "Full-stack Developer", "Разработка ПО", "Senior Developer", 
+                        "150000", "Программирование", "Python", "Коммуникация", 
+                        "МГУ, курсы по Python", "Изучение Kubernetes"
                     ]
                     
                     for i, answer in enumerate(answers):

@@ -8,7 +8,7 @@ function ChatPage({ token, onLogout }) {
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [error, setError] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
-  const [progress, setProgress] = useState({ current: 0, total: 15 });
+  const [progress, setProgress] = useState({ current: 0, total: 12 });
   const [validationError, setValidationError] = useState(null);
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -25,18 +25,21 @@ function ChatPage({ token, onLogout }) {
     connectWebSocket();
     return () => {
       if (wsRef.current) {
-        wsRef.current.close();
+        wsRef.current.close(1000, 'Component unmounting');
+        wsRef.current = null;
       }
     };
   }, [token]);
 
   const connectWebSocket = () => {
     try {
-      const wsUrl = `ws://127.0.0.1:8000/api/v1/chat/ws?token=${token}`;
+      const baseUrl = window.location.hostname === 'localhost' ? 'localhost' : '127.0.0.1';
+      const wsUrl = `ws://${baseUrl}:8000/api/v1/chat/ws?token=${token}`;
+      console.log('🔌 Connecting to WebSocket:', wsUrl);
       const ws = new WebSocket(wsUrl);
       
       ws.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('✅ WebSocket connected successfully');
         setIsConnected(true);
         setError(null);
       };
@@ -44,7 +47,7 @@ function ChatPage({ token, onLogout }) {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('Received:', data);
+          console.log('📨 Received message:', data);
           
           if (data.event === 'finished') {
             setMessages(prev => [...prev, {
@@ -70,7 +73,7 @@ function ChatPage({ token, onLogout }) {
           } else if (data.id && data.prompt) {
             // Новый вопрос от бота с расширенными метаданными
             setCurrentQuestion(data);
-            setProgress(data.progress || { current: 0, total: 15 });
+            setProgress(data.progress || { current: 0, total: 12 });
             setValidationError(null);
             
             setMessages(prev => [...prev, {
@@ -105,16 +108,24 @@ function ChatPage({ token, onLogout }) {
       };
 
       ws.onclose = (event) => {
-        console.log('WebSocket closed:', event.code, event.reason);
+        console.log('❌ WebSocket closed:', event.code, event.reason);
         setIsConnected(false);
-        if (event.code !== 1000) {
+        if (event.code !== 1000 && event.code !== 1001) {
+          console.error('Unexpected WebSocket close code:', event.code);
           setError('Соединение с сервером потеряно');
+          // Auto-reconnect after 3 seconds
+          setTimeout(() => {
+            if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+              console.log('🔄 Attempting to reconnect...');
+              connectWebSocket();
+            }
+          }, 3000);
         }
       };
 
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setError('Ошибка соединения с сервером');
+        console.error('❌ WebSocket error:', error);
+        setError('Ошибка соединения с сервером. Проверьте что backend запущен на порту 8000');
         setIsConnected(false);
       };
 
@@ -127,8 +138,11 @@ function ChatPage({ token, onLogout }) {
 
   const sendMessage = (message) => {
     if (!message || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      console.warn('⚠️ Cannot send message:', !message ? 'empty message' : !wsRef.current ? 'no websocket' : 'websocket not open');
       return;
     }
+
+    console.log('📤 Sending message:', message);
 
     // Добавляем сообщение пользователя в чат
     setMessages(prev => [...prev, {
@@ -146,16 +160,22 @@ function ChatPage({ token, onLogout }) {
 
 
   const startNewChat = () => {
+    console.log('🔄 Starting new chat...');
     setMessages([]);
     setError(null);
     setCurrentQuestion(null);
-    setProgress({ current: 0, total: 15 });
+    setProgress({ current: 0, total: 12 });
     setValidationError(null);
     setCurrentInput('');
+    setIsWaitingForResponse(false);
     if (wsRef.current) {
+      console.log('🔌 Closing existing WebSocket connection');
       wsRef.current.close();
     }
-    setTimeout(connectWebSocket, 100);
+    setTimeout(() => {
+      console.log('🔌 Reconnecting WebSocket in 100ms...');
+      connectWebSocket();
+    }, 100);
   };
 
   return (

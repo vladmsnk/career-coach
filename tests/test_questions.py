@@ -22,12 +22,14 @@ class TestInterviewModules:
         assert set(INTERVIEW_MODULES.keys()) == expected_modules
         
         # Check each module has title and questions
+        expected_question_counts = {"context": 3, "goals": 4, "skills": 5}
         for module_key, module_data in INTERVIEW_MODULES.items():
             assert "title" in module_data
             assert "questions" in module_data
             assert isinstance(module_data["title"], str)
             assert isinstance(module_data["questions"], list)
-            assert len(module_data["questions"]) == 5  # Each module has 5 questions
+            expected_count = expected_question_counts[module_key]
+            assert len(module_data["questions"]) == expected_count  # Check specific count per module
     
     def test_question_structure_and_types(self):
         """Test that each question has required fields and valid types"""
@@ -63,8 +65,8 @@ class TestQuestionsIntegration:
         """Test get_all_questions function and metadata"""
         questions = get_all_questions()
         
-        # Should return 15 questions total (5 per module)
-        assert len(questions) == 15
+        # Should return 12 questions total (3+4+5 per module)
+        assert len(questions) == 12
         
         # Each question should have module metadata
         for i, question in enumerate(questions):
@@ -73,10 +75,10 @@ class TestQuestionsIntegration:
             assert "global_index" in question
             assert question["global_index"] == i
             
-            # Check module assignment
-            if i < 5:
+            # Check module assignment: context(0-2), goals(3-6), skills(7-11)
+            if i < 3:
                 assert question["module"] == "context"
-            elif i < 10:
+            elif i < 7:
                 assert question["module"] == "goals"
             else:
                 assert question["module"] == "skills"
@@ -86,7 +88,7 @@ class TestQuestionsIntegration:
         # QUESTIONS constant should exist
         assert QUESTIONS is not None
         assert isinstance(QUESTIONS, list)
-        assert len(QUESTIONS) == 15
+        assert len(QUESTIONS) == 12
         
         # All question IDs should be unique
         question_ids = [q["id"] for q in QUESTIONS]
