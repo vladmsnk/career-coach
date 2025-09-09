@@ -132,12 +132,17 @@ def test_chat_flow():
     app.dependency_overrides[get_chat_repository] = lambda: repo
     user_id = str(uuid4())
     token = create_access_token(user_id)
-    # Test first 3 questions - need to provide 15 answers for full interview now
-    answers = ["IT", "Developer", "5", "3", "Проект 1", "IT", "Backend", "Техническая работа", "Senior", "100000", "Программирование", "Microsoft Excel", "Коммуникация", "ВУЗ", "React"]
+    # Test first 3 questions - need to provide 12 answers for full interview now
+    answers = [
+        "Бэкенд-разработчик", "5", "Разработал микросервисы на Python",
+        "Full-stack Developer", "Разработка ПО", "Senior Developer", 
+        "150000", "Программирование", "Python", "Коммуникация", 
+        "МГУ, курсы по Python", "Изучение Kubernetes"
+    ]
     ws = FakeWebSocket(answers, delay=0.02)
     asyncio.run(chat_websocket(ws, token, repo))
     prompts = [m["id"] for m in ws.sent if "id" in m]
-    # Check that we have all 15 questions
+    # Check that we have all 12 questions
     expected_ids = [q["id"] for q in QUESTIONS]
     assert prompts == expected_ids
     assert ws.sent[-1]["event"] == "finished"
@@ -149,16 +154,20 @@ def test_resume_session_returns_previous_messages():
     app.dependency_overrides[get_chat_repository] = lambda: repo
     user_id = str(uuid4())
     token = create_access_token(user_id)
-    ws1 = FakeWebSocket(["IT"], disconnect_on_empty=True)
+    ws1 = FakeWebSocket(["Бэкенд-разработчик"], disconnect_on_empty=True)
     asyncio.run(chat_websocket(ws1, token, repo))
     # Provide remaining answers to complete the interview
-    remaining_answers = ["Developer", "5", "3", "Проект 1", "IT", "Backend", "Техническая работа", "Senior", "100000", "Программирование", "Microsoft Excel", "Коммуникация", "ВУЗ", "React"]
+    remaining_answers = [
+        "5", "Разработал микросервисы на Python", "Full-stack Developer", 
+        "Разработка ПО", "Senior Developer", "150000", "Программирование", 
+        "Python", "Коммуникация", "МГУ, курсы по Python", "Изучение Kubernetes"
+    ]
     ws2 = FakeWebSocket(remaining_answers, delay=0.02)
     asyncio.run(chat_websocket(ws2, token, repo))
     assert ws2.sent[0] == {"role": "bot", "content": QUESTIONS[0]["prompt"]}
-    assert ws2.sent[1] == {"role": "user", "content": "IT"}
+    assert ws2.sent[1] == {"role": "user", "content": "Бэкенд-разработчик"}
     prompts = [m["id"] for m in ws2.sent if "id" in m]
-    # Should have remaining 14 questions (all except the first one)
+    # Should have remaining 11 questions (all except the first one)
     expected_ids = [q["id"] for q in QUESTIONS[1:]]
     assert prompts == expected_ids
     assert ws2.sent[-1]["event"] == "finished"
@@ -170,9 +179,9 @@ def test_each_user_has_own_session():
     app.dependency_overrides[get_chat_repository] = lambda: repo
     user1 = create_access_token(str(uuid4()))
     user2 = create_access_token(str(uuid4()))
-    ws1 = FakeWebSocket(["IT"], disconnect_on_empty=True)
+    ws1 = FakeWebSocket(["Бэкенд-разработчик"], disconnect_on_empty=True)
     asyncio.run(chat_websocket(ws1, user1, repo))
-    ws2 = FakeWebSocket(["Marketing"], disconnect_on_empty=True)
+    ws2 = FakeWebSocket(["Фронтенд-разработчик"], disconnect_on_empty=True)
     asyncio.run(chat_websocket(ws2, user2, repo))
     # Each user should start with the first question
     assert ws2.sent[0]["id"] == QUESTIONS[0]["id"]

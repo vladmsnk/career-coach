@@ -27,37 +27,37 @@ class TestAnswerValidation:
     def test_select_question_validation(self):
         """Test select question validation - valid and invalid answers"""
         question = {
-            "id": "current_sphere",
+            "id": "current_position",
             "type": "select",
-            "options": ["IT", "Финансы", "Маркетинг"],
-            "prompt": "В какой сфере работаете?"
+            "options": ["Бэкенд-разработчик", "Фронтенд-разработчик", "Тестировщик"],
+            "prompt": "Какая у вас текущая должность?"
         }
         
         # Valid answer
-        assert self.handler.validate_answer("IT", question) is None
+        assert self.handler.validate_answer("Бэкенд-разработчик", question) is None
         
         # Invalid answer
-        result = self.handler.validate_answer("Спорт", question)
+        result = self.handler.validate_answer("Дизайнер", question)
         assert "Выберите один из вариантов" in result
 
     def test_multiselect_question_validation(self):
         """Test multiselect question validation"""
         question = {
-            "id": "skills",
+            "id": "tools_experience",
             "type": "multiselect",
-            "options": ["Python", "Java", "JavaScript"],
-            "prompt": "Какие языки знаете?"
+            "options": ["Python", "Java", "Docker", "Kubernetes"],
+            "prompt": "Какими технологиями владеете?"
         }
         
         # Valid answer
-        assert self.handler.validate_answer("Python, Java", question) is None
+        assert self.handler.validate_answer("Python, Docker", question) is None
         
         # Empty answer
         assert "Выберите хотя бы один вариант" in self.handler.validate_answer("", question)
         
         # Invalid option
-        result = self.handler.validate_answer("Python, C++", question)
-        assert "Недопустимые варианты: C++" in result
+        result = self.handler.validate_answer("Python, PHP", question)
+        assert "Недопустимые варианты: PHP" in result
 
     def test_number_question_validation(self):
         """Test number question validation"""
@@ -144,9 +144,9 @@ class TestAnswerValidation:
         assert result == "java,javascript,python"  # Sorted and lowercase
         
         # Case-insensitive normalization
-        result1 = self.handler.normalize_answer("IT", "string")
-        result2 = self.handler.normalize_answer("it", "string")
-        assert result1 == result2 == "it"
+        result1 = self.handler.normalize_answer("Python", "string")
+        result2 = self.handler.normalize_answer("python", "string")
+        assert result1 == result2 == "python"
 
     def test_unknown_question_type_defaults_to_string(self):
         """Test that unknown question types default to string validation"""
