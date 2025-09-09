@@ -161,9 +161,10 @@ class SqlAlchemyChatRepository(ChatRepository):
         model = result.scalars().one()
         
         # Update collected_data
-        current_data = model.collected_data or {}
-        current_data[question_id] = answer
-        model.collected_data = current_data
+        # With MutableDict, SQLAlchemy will automatically track changes
+        if model.collected_data is None:
+            model.collected_data = {}
+        model.collected_data[question_id] = answer
         
         await self._session.commit()
 
