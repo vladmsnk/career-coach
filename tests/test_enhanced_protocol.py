@@ -14,7 +14,7 @@ class MockWebSocket:
     """Mock WebSocket for testing enhanced protocol"""
     def __init__(self):
         self.sent_messages = []
-        self.received_messages = ["IT"]  # Default answer
+        self.received_messages = ["Бэкенд-разработчик"]  # Default answer for new questions
         self.message_index = 0
     
     async def send_json(self, data):
@@ -44,11 +44,11 @@ class TestEnhancedWebSocketProtocol:
         
         # Test different question types
         test_cases = [
-            ("select", ["IT"], "options"),
-            ("multiselect", ["Техническая работа"], "options"),
+            ("select", ["Бэкенд-разработчик"], "options"),
+            ("multiselect", ["Разработка ПО"], "options"),
             ("number", ["5"], "constraints"),
             ("range", ["100000"], "constraints"),
-            ("string", ["Developer"], "constraints"),
+            ("string", ["Senior Developer"], "constraints"),
             ("text", ["Проект описание"], "constraints")
         ]
         
@@ -81,8 +81,8 @@ class TestEnhancedWebSocketProtocol:
         user_id = uuid4()
         session = await repo.create_session(user_id)
         
-        # Answers corresponding to question types: select, string, number
-        test_answers = ["IT", "Developer", "5"]
+        # Answers corresponding to question types: select, number, text
+        test_answers = ["Бэкенд-разработчик", "5", "Разработал API на Python"]
         
         # Test different questions with their progress
         for idx, question in enumerate(QUESTIONS[:3]):  # Test first 3
@@ -121,17 +121,17 @@ class TestEnhancedWebSocketProtocol:
                 
                 # Set appropriate answer based on question type
                 if question["type"] == "select":
-                    mock_ws.received_messages = ["IT"]  # Valid for both context and goals modules
+                    mock_ws.received_messages = ["Бэкенд-разработчик"]  # Valid IT specialization
                 elif question["type"] == "multiselect":
-                    # For skills module: use first valid option
+                    # Use first valid option from the question
                     first_option = question.get("options", ["Программирование"])[0]
                     mock_ws.received_messages = [first_option]
                 elif question["type"] == "string":
-                    mock_ws.received_messages = ["Test String"]
+                    mock_ws.received_messages = ["Senior Developer"]
                 elif question["type"] == "number":
                     mock_ws.received_messages = ["5"]
                 elif question["type"] == "range":
-                    mock_ws.received_messages = ["100000"]
+                    mock_ws.received_messages = ["150000"]
                 else:
                     mock_ws.received_messages = ["Default Answer"]
                 
@@ -153,6 +153,7 @@ class TestEnhancedWebSocketProtocol:
     async def test_backward_compatibility_fields(self):
         """Test that old required fields are still present"""
         mock_ws = MockWebSocket()
+        mock_ws.received_messages = ["Бэкенд-разработчик"]  # Valid answer for new first question
         repo = InMemoryChatRepository()
         handler = WebSocketHandler(mock_ws, repo)
         
