@@ -61,11 +61,107 @@ class WebSocketHandler:
                     return False
         return True
     
+    def validate_answer(self, answer: str, question_data: dict) -> Optional[str]:
+        """Validate answer based on question type"""
+        q_type = question_data.get("type", "string")
+        
+        if q_type == "select":
+            options = question_data.get("options", [])
+            if answer not in options:
+                return f"Выберите один из вариантов: {', '.join(options)}"
+        
+        elif q_type == "multiselect":
+            # Simple comma-separated validation for now
+            options = question_data.get("options", [])
+            selected = [s.strip() for s in answer.split(",") if s.strip()]
+            if not selected:
+                return "Выберите хотя бы один вариант"
+            invalid = [s for s in selected if s not in options]
+            if invalid:
+                return f"Недопустимые варианты: {', '.join(invalid)}"
+        
+        elif q_type == "number":
+            try:
+                num = int(answer)
+                min_val = question_data.get("min", 0)
+                max_val = question_data.get("max", 100)
+                if not (min_val <= num <= max_val):
+                    return f"Число должно быть от {min_val} до {max_val}"
+            except ValueError:
+                return "Введите корректное число"
+        
+        elif q_type == "range":
+            try:
+                num = int(answer)
+                min_val = question_data.get("min", 0)
+                max_val = question_data.get("max", 100)
+                if not (min_val <= num <= max_val):
+                    return f"Значение должно быть от {min_val} до {max_val}"
+            except ValueError:
+                return "Введите корректное число"
+        
+        elif q_type in ["string", "text"]:
+            max_len = question_data.get("max_length", 1000)
+            if len(answer) > max_len:
+                return f"Максимальная длина: {max_len} символов"
+            if len(answer.strip()) == 0:
+                return "Ответ не может быть пустым"
+        
+        return None
+
+    def normalize_answer(self, answer: Optional[str], question_type: str) -> Optional[str]:
+        """Normalize answer for comparison"""
+        if answer is None:
+            return None
+        
+        if question_type == "multiselect":
+            # Normalize multiselect as sorted set
+            items = sorted([s.strip().lower() for s in answer.split(",") if s.strip()])
+            return ",".join(items)
+        
+        return answer.strip().lower()
+
     async def handle_question_cycle(self, question_data: dict, session_id: UUID, last_user_message: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
-        """Handle a single question-answer cycle"""
+        """Handle a single question-answer cycle with enhanced protocol"""
         while True:
-            # Send question
-            if not await self.send_json({"id": question_data["id"], "prompt": question_data["prompt"]}):
+            # Расширенный формат вопроса (обратно-совместимый)
+            question_payload = {
+                "id": question_data["id"],
+                "prompt": question_data["prompt"],
+                # Новые поля (опциональные)
+                "type": question_data.get("type", "string"),
+                "module": question_data.get("module", "context"),
+                "module_title": question_data.get("module_title", ""),
+                "progress": {
+                    "current": question_data.get("global_index", 0) + 1,
+                    "total": question_data.get("total_questions", 15)
+                }
+            }
+            
+            # Добавляем constraints для типизированных вопросов
+            if question_data.get("type") == "select":
+                question_payload["options"] = question_data.get("options", [])
+            elif question_data.get("type") == "multiselect":
+                question_payload["options"] = question_data.get("options", [])
+                question_payload["multiple"] = True
+            elif question_data.get("type") == "number":
+                question_payload["constraints"] = {
+                    "min": question_data.get("min", 0),
+                    "max": question_data.get("max", 100)
+                }
+            elif question_data.get("type") == "range":
+                question_payload["constraints"] = {
+                    "min": question_data.get("min", 0),
+                    "max": question_data.get("max", 100),
+                    "step": question_data.get("step", 1)
+                }
+            elif question_data.get("type") in ["string", "text"]:
+                question_payload["constraints"] = {
+                    "max_length": question_data.get("max_length", 1000)
+                }
+            
+            # Send enhanced question
+            if not await self.send_json(question_payload):
                 return None, None
                 
             # Receive answer
@@ -74,8 +170,24 @@ class WebSocketHandler:
             except WebSocketDisconnect:
                 return None, None
             
-            # Check for duplicate answer
-            if last_user_message and user_reply == last_user_message:
+            # Basic validation of answer
+            validation_error = self.validate_answer(user_reply, question_data)
+            if validation_error:
+                if not await self.send_json({
+                    "error": {
+                        "code": "validation_failed",
+                        "message": validation_error,
+                        "details": {}
+                    }
+                }):
+                    return None, None
+                continue
+            
+            # Check for duplicate answer (normalized comparison)
+            normalized_reply = self.normalize_answer(user_reply, question_data.get("type", "string"))
+            normalized_last = self.normalize_answer(last_user_message, question_data.get("type", "string")) if last_user_message else None
+            
+            if normalized_last and normalized_reply == normalized_last:
                 if not await self.send_json({"error": "duplicate"}):
                     return None, None
                 continue
@@ -181,12 +293,17 @@ async def chat_websocket(
         
         for idx in range(session.answers_count, len(QUESTIONS)):
             question = QUESTIONS[idx]
+            # Add total_questions for progress calculation
+            question_with_meta = {**question, "total_questions": len(QUESTIONS)}
+            
             await repo.update_session(session.id, question_index=idx + 1)
             
-            user_reply, last_user_message = await handler.handle_question_cycle(question, session.id, last_user_message)
+            user_reply, last_user_message = await handler.handle_question_cycle(question_with_meta, session.id, last_user_message)
             if user_reply is None:  # Connection closed
                 return
             
+            # Save answer to collected_data
+            await repo.update_session_data(session.id, question["id"], user_reply)
             await repo.update_session(session.id, answers_count=idx + 1)
         
         # 5. Complete session

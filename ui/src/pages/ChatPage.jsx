@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import QuestionInput from '../components/QuestionInput.jsx';
 
 function ChatPage({ token, onLogout }) {
   const [messages, setMessages] = useState([]);
@@ -6,6 +7,9 @@ function ChatPage({ token, onLogout }) {
   const [isConnected, setIsConnected] = useState(false);
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [error, setError] = useState(null);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [progress, setProgress] = useState({ current: 0, total: 15 });
+  const [validationError, setValidationError] = useState(null);
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
 
@@ -48,20 +52,34 @@ function ChatPage({ token, onLogout }) {
               content: 'Спасибо за ответы! Диалог завершен. Вы можете начать новый диалог.',
               timestamp: new Date()
             }]);
+            setCurrentQuestion(null);
             setIsWaitingForResponse(false);
-          } else if (data.error === 'duplicate') {
-            setMessages(prev => [...prev, {
-              type: 'error',
-              content: 'Пожалуйста, дайте другой ответ (не повторяйте предыдущий).',
-              timestamp: new Date()
-            }]);
-            setIsWaitingForResponse(false);
+          } else if (data.error) {
+            // Обработка ошибок валидации
+            if (data.error.code === 'validation_failed') {
+              setValidationError(data.error.message);
+              setIsWaitingForResponse(false);
+            } else if (data.error === 'duplicate') {
+              setMessages(prev => [...prev, {
+                type: 'error',
+                content: 'Пожалуйста, дайте другой ответ (не повторяйте предыдущий).',
+                timestamp: new Date()
+              }]);
+              setIsWaitingForResponse(false);
+            }
           } else if (data.id && data.prompt) {
-            // Новый вопрос от бота
+            // Новый вопрос от бота с расширенными метаданными
+            setCurrentQuestion(data);
+            setProgress(data.progress || { current: 0, total: 15 });
+            setValidationError(null);
+            
             setMessages(prev => [...prev, {
               type: 'bot',
               content: data.prompt,
               questionId: data.id,
+              questionType: data.type,
+              module: data.module,
+              moduleTitle: data.module_title,
               timestamp: new Date()
             }]);
             setIsWaitingForResponse(false);
@@ -107,13 +125,11 @@ function ChatPage({ token, onLogout }) {
     }
   };
 
-  const sendMessage = () => {
-    if (!currentInput.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+  const sendMessage = (message) => {
+    if (!message || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       return;
     }
 
-    const message = currentInput.trim();
-    
     // Добавляем сообщение пользователя в чат
     setMessages(prev => [...prev, {
       type: 'user',
@@ -124,19 +140,18 @@ function ChatPage({ token, onLogout }) {
     // Отправляем сообщение на сервер
     wsRef.current.send(message);
     setCurrentInput('');
+    setValidationError(null);
     setIsWaitingForResponse(true);
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
 
   const startNewChat = () => {
     setMessages([]);
     setError(null);
+    setCurrentQuestion(null);
+    setProgress({ current: 0, total: 15 });
+    setValidationError(null);
+    setCurrentInput('');
     if (wsRef.current) {
       wsRef.current.close();
     }
@@ -146,7 +161,14 @@ function ChatPage({ token, onLogout }) {
   return (
     <div className="chat-container">
       <div className="chat-header">
-        <h2>Карьерный консультант</h2>
+        <div className="header-main">
+          <h2>Карьерный консультант</h2>
+          {currentQuestion && (
+            <div className="module-info">
+              <span className="module-title">{currentQuestion.module_title}</span>
+            </div>
+          )}
+        </div>
         <div className="header-controls">
           <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
             {isConnected ? '🟢 Подключено' : '🔴 Не подключено'}
@@ -160,11 +182,45 @@ function ChatPage({ token, onLogout }) {
         </div>
       </div>
 
+      {progress.current > 0 && (
+        <div className="progress-container">
+          <div className="progress-info">
+            <span>Вопрос {progress.current} из {progress.total}</span>
+            {currentQuestion && (
+              <span className={`module-badge module-${currentQuestion.module}`}>
+                {currentQuestion.module === 'context' && '📋 Контекст'}
+                {currentQuestion.module === 'goals' && '🎯 Цели'}
+                {currentQuestion.module === 'skills' && '🛠️ Навыки'}
+              </span>
+            )}
+          </div>
+          <div className="progress-bar">
+            <div 
+              className="progress-fill" 
+              style={{ width: `${(progress.current / progress.total) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="error-message">
           {error}
           <button onClick={connectWebSocket} className="retry-btn">
             Переподключиться
+          </button>
+        </div>
+      )}
+
+      {validationError && (
+        <div className="validation-error">
+          <span className="error-icon">⚠️</span>
+          <span className="error-text">{validationError}</span>
+          <button 
+            onClick={() => setValidationError(null)} 
+            className="error-close"
+          >
+            ✕
           </button>
         </div>
       )}
@@ -202,24 +258,11 @@ function ChatPage({ token, onLogout }) {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="input-container">
-        <input
-          type="text"
-          value={currentInput}
-          onChange={(e) => setCurrentInput(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Введите ваш ответ..."
-          disabled={!isConnected || isWaitingForResponse}
-          className="message-input"
-        />
-        <button
-          onClick={sendMessage}
-          disabled={!isConnected || !currentInput.trim() || isWaitingForResponse}
-          className="send-btn"
-        >
-          Отправить
-        </button>
-      </div>
+      <QuestionInput
+        question={currentQuestion}
+        onSubmit={sendMessage}
+        disabled={!isConnected || isWaitingForResponse}
+      />
     </div>
   );
 }

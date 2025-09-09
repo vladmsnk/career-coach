@@ -65,13 +65,21 @@ def test_successful_dialog() -> None:
 
                 uri = f"ws://127.0.0.1:8000/api/v1/chat/ws?token={token}"
                 async with websockets.connect(uri) as ws:
-                    for answer in ["IT", "Developer", "5"]:
+                    # Answer all 15 questions for complete interview
+                    answers = [
+                        "IT", "Developer", "5", "3", "Проект 1", 
+                        "IT", "Backend", "Техническая работа", "Senior", "100000", 
+                        "Программирование", "Microsoft Excel", "Коммуникация", "ВУЗ", "React"
+                    ]
+                    
+                    for i, answer in enumerate(answers):
                         raw = await ws.recv()
                         data = json.loads(raw)
-                        logger.info("received question: %s", data)
+                        logger.info("received question %d: %s", i+1, data)
                         assert "id" in data, f"unexpected message: {data}"
-                        logger.info("send answer: %s", answer)
+                        logger.info("send answer %d: %s", i+1, answer)
                         await ws.send(answer)
+                    
                     final = json.loads(await ws.recv())
                     logger.info("final: %s", final)
                     assert final["event"] == "finished"

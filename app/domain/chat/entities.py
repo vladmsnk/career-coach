@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
+from typing import Dict, Any
 
 
 @dataclass
@@ -11,6 +12,8 @@ class ChatSession:
     status: str
     question_index: int
     answers_count: int
+    current_module: str = "context"
+    collected_data: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
