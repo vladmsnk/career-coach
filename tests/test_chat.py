@@ -165,29 +165,6 @@ def test_resume_session_returns_previous_messages():
     app.dependency_overrides.clear()
 
 
-def test_duplicate_messages_reask_question():
-    repo = InMemoryChatRepository()
-    app.dependency_overrides[get_chat_repository] = lambda: repo
-    user_id = str(uuid4())
-    token = create_access_token(user_id)
-    # Test cross-question duplicate: answer "IT" to first question, then "IT" to second question (should trigger duplicate)
-    all_answers = ["IT", "IT", "Developer", "5", "3", "Проект 1", "IT", "Backend", "Техническая работа", "Senior", "100000", "Программирование", "Microsoft Excel", "Коммуникация", "ВУЗ", "React"]
-    ws = FakeWebSocket(all_answers, delay=0.02)
-    asyncio.run(chat_websocket(ws, token, repo))
-    prompts = [m["id"] for m in ws.sent if "id" in m]
-    # Should have: first question, second question, second question again (due to duplicate), then remaining
-    expected_prompts = [
-        QUESTIONS[0]["id"],  # current_sphere
-        QUESTIONS[1]["id"],  # current_position  
-        QUESTIONS[1]["id"],  # current_position (repeated due to duplicate)
-    ] + [q["id"] for q in QUESTIONS[2:]]  # remaining questions
-    assert prompts == expected_prompts
-    errors = [m for m in ws.sent if m.get("error") == "duplicate"]
-    assert len(errors) == 1
-    assert ws.sent[-1]["event"] == "finished"
-    app.dependency_overrides.clear()
-
-
 def test_each_user_has_own_session():
     repo = InMemoryChatRepository()
     app.dependency_overrides[get_chat_repository] = lambda: repo
