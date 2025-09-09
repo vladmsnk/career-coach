@@ -25,16 +25,14 @@ function ChatPage({ token, onLogout }) {
     connectWebSocket();
     return () => {
       if (wsRef.current) {
-        wsRef.current.close(1000, 'Component unmounting');
-        wsRef.current = null;
+        wsRef.current.close();
       }
     };
   }, [token]);
 
   const connectWebSocket = () => {
     try {
-      const baseUrl = window.location.hostname === 'localhost' ? 'localhost' : '127.0.0.1';
-      const wsUrl = `ws://${baseUrl}:8000/api/v1/chat/ws?token=${token}`;
+      const wsUrl = `ws://127.0.0.1:8000/api/v1/chat/ws?token=${token}`;
       console.log('🔌 Connecting to WebSocket:', wsUrl);
       const ws = new WebSocket(wsUrl);
       
@@ -110,16 +108,9 @@ function ChatPage({ token, onLogout }) {
       ws.onclose = (event) => {
         console.log('❌ WebSocket closed:', event.code, event.reason);
         setIsConnected(false);
-        if (event.code !== 1000 && event.code !== 1001) {
+        if (event.code !== 1000) {
           console.error('Unexpected WebSocket close code:', event.code);
           setError('Соединение с сервером потеряно');
-          // Auto-reconnect after 3 seconds
-          setTimeout(() => {
-            if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
-              console.log('🔄 Attempting to reconnect...');
-              connectWebSocket();
-            }
-          }, 3000);
         }
       };
 
