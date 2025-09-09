@@ -135,7 +135,7 @@ def test_chat_flow():
     # Test first 3 questions - need to provide 12 answers for full interview now
     answers = [
         "Бэкенд-разработчик", "5", "Разработал микросервисы на Python",
-        "Full-stack Developer", "Разработка ПО", "Senior Developer", 
+        "Фулстек-разработчик", "Разработка ПО", "Senior Developer", 
         "150000", "Программирование", "Python", "Коммуникация", 
         "МГУ, курсы по Python", "Изучение Kubernetes"
     ]
@@ -158,7 +158,7 @@ def test_resume_session_returns_previous_messages():
     asyncio.run(chat_websocket(ws1, token, repo))
     # Provide remaining answers to complete the interview
     remaining_answers = [
-        "5", "Разработал микросервисы на Python", "Full-stack Developer", 
+        "5", "Разработал микросервисы на Python", "Фулстек-разработчик", 
         "Разработка ПО", "Senior Developer", "150000", "Программирование", 
         "Python", "Коммуникация", "МГУ, курсы по Python", "Изучение Kubernetes"
     ]

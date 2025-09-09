@@ -39,9 +39,22 @@ INTERVIEW_MODULES = {
         "questions": [
             {
                 "id": "target_specialization", 
-                "type": "string", 
+                "type": "select", 
                 "prompt": "В какой IT-специализации или направлении вы хотите развиваться?",
-                "max_length": 100
+                "options": [
+                    "Бэкенд-разработчик", "Фронтенд-разработчик", "Фулстек-разработчик",
+                    "ML-разработчик", "Machine Learning Engineer", "Data Engineer", 
+                    "Data Scientist", "AI Engineer",
+                    "DevOps-инженер", "Системный администратор", "Инженер по информационной безопасности",
+                    "iOS-разработчик", "Android-разработчик", "Разработчик мобильных приложений", 
+                    "Тестировщик", "QA Engineer", "Test Automation Engineer",
+                    "Системный разработчик", "Embedded-разработчик",
+                    "Технический лидер", "Tech Lead", "Team Lead", 
+                    "Архитектор ПО", "Solution Architect", "Enterprise Architect",
+                    "Продакт-менеджер", "Технический менеджер", "Engineering Manager",
+                    "Системный аналитик", "Бизнес-аналитик", "Аналитик данных",
+                    "UX/UI дизайнер", "Product Designer"
+                ]
             },
             {
                 "id": "preferred_activities", 

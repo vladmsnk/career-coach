@@ -16,11 +16,13 @@ from app.schemas.chat import (
     BotQuestionResponse,
 )
 from app.core.db import get_db_session
+from app.core.settings import settings
 from app.domain.chat.questions import QUESTIONS
 from app.domain.chat.repositories import ChatRepository
 from app.domain.chat.entities import ChatSession
 from app.infrastructure.auth.jwt import decode_access_token
 from app.infrastructure.db.repositories.chat_repository import SqlAlchemyChatRepository
+from app.services.recommendations.recommendation_service import RecommendationService
 
 
 router = APIRouter()
@@ -197,12 +199,73 @@ class WebSocketHandler:
             return user_reply, user_reply
     
     async def complete_session(self, session_id: UUID) -> bool:
-        """Mark session as finished and send completion message"""
+        """Mark session as finished and send completion message with optional recommendations"""
+        
+        # Отправляем рекомендации вакансий (если включено)
+        if settings.enable_vacancy_recommendations:
+            await self._send_vacancy_recommendations(session_id)
+        
+        # Завершаем сессию (существующая логика)
         await self.repo.update_session(session_id, status="finished")
         if await self.send_json({"event": "finished"}):
             await self.websocket.close()
             return True
         return False
+    
+    async def _send_vacancy_recommendations(self, session_id: UUID) -> None:
+        """Отправляет рекомендации вакансий пользователю (с защитой от ошибок)"""
+        try:
+            print(f"🔍 Получение рекомендаций для сессии {session_id}")
+            
+            # Создаем сервис рекомендаций
+            recommendation_service = RecommendationService(self.repo)
+            
+            # Получаем рекомендации
+            recommendations = await recommendation_service.get_recommendations_for_session(session_id)
+            
+            if not recommendations:
+                print("⚠️ Рекомендации не найдены")
+                await self.send_json({
+                    "event": "recommendations",
+                    "message": "😔 К сожалению, не удалось найти подходящие вакансии. Попробуйте расширить критерии поиска."
+                })
+                return
+            
+            # Формируем сообщение для пользователя
+            message = f"🎯 Нашли {len(recommendations)} подходящих вакансий для вас:"
+            
+            # Извлекаем hh_id для отображения
+            hh_ids = [rec.hh_id for rec in recommendations]
+            
+            # Отправляем рекомендации
+            await self.send_json({
+                "event": "recommendations", 
+                "message": message,
+                "data": {
+                    "recommendations": [
+                        {
+                            "hh_id": rec.hh_id,
+                            "title": rec.title,
+                            "company": rec.company,
+                            "score": round(rec.score * 100, 1),  # Переводим в проценты
+                            "url": rec.url,
+                            "category": rec.category
+                        }
+                        for rec in recommendations
+                    ],
+                    "hh_ids": hh_ids
+                }
+            })
+            
+            print(f"✅ Отправлены рекомендации: {hh_ids}")
+            
+        except Exception as e:
+            print(f"❌ Ошибка получения рекомендаций (не критично): {e}")
+            # НЕ re-raise - завершение сессии должно продолжиться
+            await self.send_json({
+                "event": "recommendations_error",
+                "message": "⚠️ Не удалось получить рекомендации вакансий. Попробуйте позже."
+            })
 
 
 def authenticate_user(token: str) -> Optional[UUID]:

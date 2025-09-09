@@ -61,7 +61,7 @@ class TestSessionDataFunctionality:
         questions_and_answers = [
             ("current_position", "Бэкенд-разработчик"),
             ("years_in_position", "5"),
-            ("target_specialization", "Full-stack Developer"),
+            ("target_specialization", "Фулстек-разработчик"),
             ("preferred_activities", "Разработка ПО"),
             ("current_skills", "Программирование")
         ]

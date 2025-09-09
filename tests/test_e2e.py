@@ -83,7 +83,7 @@ def test_successful_dialog() -> None:
                     # Answer all 12 questions for complete interview
                     answers = [
                         "Бэкенд-разработчик", "5", "Разработал микросервисы на Python",
-                        "Full-stack Developer", "Разработка ПО", "Senior Developer", 
+                        "Фулстек-разработчик", "Разработка ПО", "Senior Developer", 
                         "150000", "Программирование", "Python", "Коммуникация", 
                         "МГУ, курсы по Python", "Изучение Kubernetes"
                     ]
@@ -96,9 +96,24 @@ def test_successful_dialog() -> None:
                         logger.info("send answer %d: %s", i+1, answer)
                         await ws.send(answer)
                     
-                    final = json.loads(await ws.recv())
-                    logger.info("final: %s", final)
-                    assert final["event"] == "finished"
+                    # Теперь с включенными рекомендациями сначала приходят рекомендации, потом finished
+                    first_msg = json.loads(await ws.recv())
+                    logger.info("first_msg: %s", first_msg)
+                    
+                    if first_msg["event"] == "recommendations":
+                        # Проверяем что рекомендации содержат HH IDs
+                        assert "data" in first_msg
+                        assert "hh_ids" in first_msg["data"]
+                        assert len(first_msg["data"]["hh_ids"]) == 5
+                        logger.info("✅ Получены рекомендации с HH IDs: %s", first_msg["data"]["hh_ids"])
+                        
+                        # Получаем финальное сообщение
+                        final = json.loads(await ws.recv())
+                        logger.info("final: %s", final)
+                        assert final["event"] == "finished"
+                    else:
+                        # Если рекомендации отключены, должно сразу прийти finished
+                        assert first_msg["event"] == "finished"
 
             asyncio.run(_chat())
         finally:

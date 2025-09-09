@@ -47,7 +47,28 @@ function ChatPage({ token, onLogout }) {
           const data = JSON.parse(event.data);
           console.log('📨 Received message:', data);
           
-          if (data.event === 'finished') {
+          if (data.event === 'recommendations') {
+            // Обработка рекомендаций вакансий
+            const recommendations = data.data?.recommendations || [];
+            const hh_ids = data.data?.hh_ids || [];
+            
+            setMessages(prev => [...prev, {
+              type: 'recommendations',
+              content: data.message || 'Рекомендации вакансий:',
+              recommendations: recommendations,
+              hh_ids: hh_ids,
+              timestamp: new Date()
+            }]);
+            setIsWaitingForResponse(false);
+          } else if (data.event === 'recommendations_error') {
+            // Обработка ошибки рекомендаций
+            setMessages(prev => [...prev, {
+              type: 'error',
+              content: data.message || 'Не удалось получить рекомендации вакансий.',
+              timestamp: new Date()
+            }]);
+            setIsWaitingForResponse(false);
+          } else if (data.event === 'finished') {
             setMessages(prev => [...prev, {
               type: 'system',
               content: 'Спасибо за ответы! Диалог завершен. Вы можете начать новый диалог.',
@@ -246,7 +267,53 @@ function ChatPage({ token, onLogout }) {
         {messages.map((msg, index) => (
           <div key={index} className={`message ${msg.type}`}>
             <div className="message-content">
-              {msg.content}
+              {msg.type === 'recommendations' ? (
+                <div className="recommendations-block">
+                  <div className="recommendations-header">
+                    <span className="recommendations-icon">🎯</span>
+                    <span className="recommendations-title">{msg.content}</span>
+                  </div>
+                  
+                  {msg.recommendations && msg.recommendations.length > 0 && (
+                    <div className="recommendations-list">
+                      {msg.recommendations.map((rec, idx) => (
+                        <div key={idx} className="recommendation-item">
+                          <div className="recommendation-header">
+                            <div className="recommendation-title">{rec.title}</div>
+                            <div className="recommendation-score">
+                              <span className="score-label">Совпадение:</span>
+                              <span className="score-value">{rec.score}%</span>
+                            </div>
+                          </div>
+                          <div className="recommendation-company">{rec.company}</div>
+                          <div className="recommendation-category">{rec.category}</div>
+                          <div className="recommendation-footer">
+                            <span className="recommendation-id">ID: {rec.hh_id}</span>
+                            {rec.url && rec.url !== '#' && (
+                              <a 
+                                href={rec.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="recommendation-link"
+                              >
+                                Посмотреть вакансию →
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {msg.hh_ids && msg.hh_ids.length > 0 && (
+                    <div className="hh-ids-summary">
+                      <strong>HH IDs:</strong> {msg.hh_ids.join(', ')}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                msg.content
+              )}
             </div>
             <div className="message-time">
               {msg.timestamp.toLocaleTimeString()}
