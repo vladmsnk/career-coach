@@ -16,8 +16,46 @@ function QuestionInput({ question, onSubmit, disabled }) {
       submitValue = multiSelectValues.join(', ');
     }
     
+    // Validate input based on question type
+    if (!validateInput(submitValue)) {
+      return;
+    }
+    
     if (submitValue.trim()) {
       onSubmit(submitValue.trim());
+    }
+  };
+  
+  const validateInput = (input) => {
+    if (!question) return true;
+    
+    switch (question.type) {
+      case 'number':
+        const num = parseFloat(input);
+        if (isNaN(num)) return false;
+        if (min !== undefined && num < min) return false;
+        if (max !== undefined && num > max) return false;
+        return true;
+      
+      case 'range':
+        const rangeNum = parseFloat(input);
+        if (isNaN(rangeNum)) return false;
+        if (min !== undefined && rangeNum < min) return false;
+        if (max !== undefined && rangeNum > max) return false;
+        return true;
+        
+      case 'text':
+        if (max_length && input.length > max_length) return false;
+        return input.trim().length > 0;
+        
+      case 'select':
+        return options && options.includes(input);
+        
+      case 'multiselect':
+        return multiSelectValues.length > 0;
+        
+      default:
+        return input.trim().length > 0;
     }
   };
 
@@ -47,6 +85,7 @@ function QuestionInput({ question, onSubmit, disabled }) {
           placeholder="Введите ваш ответ..."
           disabled={disabled}
           className="message-input"
+          aria-label="Поле ввода ответа"
         />
         <button
           onClick={handleSubmit}
@@ -59,7 +98,8 @@ function QuestionInput({ question, onSubmit, disabled }) {
     );
   }
 
-  const { type, options, constraints } = question;
+  const { type, options, min, max, step, max_length } = question;
+  const constraints = { min, max, step, max_length };
 
   // Select dropdown
   if (type === 'select' && options) {
@@ -70,6 +110,7 @@ function QuestionInput({ question, onSubmit, disabled }) {
           onChange={(e) => setValue(e.target.value)}
           disabled={disabled}
           className="question-select"
+          aria-label="Выбор варианта ответа"
         >
           <option value="">Выберите вариант...</option>
           {options.map(option => (
@@ -99,8 +140,9 @@ function QuestionInput({ question, onSubmit, disabled }) {
                 checked={multiSelectValues.includes(option)}
                 onChange={(e) => handleMultiSelectChange(option, e.target.checked)}
                 disabled={disabled}
+                aria-describedby={`option-${option.replace(/\s+/g, '-')}`}
               />
-              <span>{option}</span>
+              <span id={`option-${option.replace(/\s+/g, '-')}`}>{option}</span>
             </label>
           ))}
         </div>
@@ -116,14 +158,25 @@ function QuestionInput({ question, onSubmit, disabled }) {
   }
 
   // Number input
-  if (type === 'number' && constraints) {
-    const { min, max } = constraints;
+  if (type === 'number' && (min !== undefined || max !== undefined)) {
     return (
       <div className="input-container">
         <input
           type="number"
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            const newValue = e.target.value;
+            if (min !== undefined && max !== undefined) {
+              const num = parseFloat(newValue);
+              if (!isNaN(num) && num >= min && num <= max) {
+                setValue(newValue);
+              } else if (newValue === '') {
+                setValue('');
+              }
+            } else {
+              setValue(newValue);
+            }
+          }}
           onKeyPress={handleKeyPress}
           min={min}
           max={max}
@@ -143,8 +196,7 @@ function QuestionInput({ question, onSubmit, disabled }) {
   }
 
   // Range input
-  if (type === 'range' && constraints) {
-    const { min, max, step } = constraints;
+  if (type === 'range' && (min !== undefined || max !== undefined)) {
     return (
       <div className="input-container range-container">
         <div className="range-input-group">
@@ -182,7 +234,7 @@ function QuestionInput({ question, onSubmit, disabled }) {
 
   // Text area for long text
   if (type === 'text') {
-    const maxLength = constraints?.max_length || 1000;
+    const maxLength = max_length || 1000;
     return (
       <div className="input-container text-container">
         <textarea
@@ -193,6 +245,8 @@ function QuestionInput({ question, onSubmit, disabled }) {
           disabled={disabled}
           className="message-textarea"
           rows={3}
+          aria-label="Поле ввода развернутого ответа"
+          aria-describedby="char-count"
         />
         <div className="text-info">
           <span className="char-count">{value.length}/{maxLength}</span>
@@ -209,7 +263,7 @@ function QuestionInput({ question, onSubmit, disabled }) {
   }
 
   // Default text input
-  const maxLength = constraints?.max_length || 1000;
+  const maxLength = max_length || 1000;
   return (
     <div className="input-container">
       <input
