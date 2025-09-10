@@ -47,7 +47,18 @@ function ChatPage({ token, onLogout }) {
           const data = JSON.parse(event.data);
           console.log('📨 Received message:', data);
           
-          if (data.event === 'recommendations') {
+          if (data.event === 'career_consultation') {
+            // Обработка карьерной консультации
+            const consultation = data.data?.consultation || '';
+            
+            setMessages(prev => [...prev, {
+              type: 'career_consultation',
+              content: data.message || 'Карьерная консультация',
+              consultation: consultation,
+              timestamp: new Date()
+            }]);
+            setIsWaitingForResponse(false);
+          } else if (data.event === 'recommendations') {
             // Обработка рекомендаций вакансий
             const recommendations = data.data?.recommendations || [];
             const hh_ids = data.data?.hh_ids || [];
@@ -267,7 +278,21 @@ function ChatPage({ token, onLogout }) {
         {messages.map((msg, index) => (
           <div key={index} className={`message ${msg.type}`}>
             <div className="message-content">
-              {msg.type === 'recommendations' ? (
+              {msg.type === 'career_consultation' ? (
+                <div className="career-consultation-block">
+                  <div className="consultation-header">
+                    <span className="consultation-icon">🎯</span>
+                    <span className="consultation-title">{msg.content}</span>
+                  </div>
+                  <div className="consultation-content">
+                    {msg.consultation.split('\n').map((line, idx) => (
+                      <p key={idx} className="consultation-paragraph">
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              ) : msg.type === 'recommendations' ? (
                 <div className="recommendations-block">
                   <div className="recommendations-header">
                     <span className="recommendations-icon">🎯</span>

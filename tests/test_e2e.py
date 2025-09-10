@@ -96,12 +96,32 @@ def test_successful_dialog() -> None:
                         logger.info("send answer %d: %s", i+1, answer)
                         await ws.send(answer)
                     
-                    # Теперь с включенными рекомендациями сначала приходят рекомендации, потом finished
+                    # Теперь с включенными рекомендациями сначала приходят карьерная консультация, потом рекомендации, потом finished
                     first_msg = json.loads(await ws.recv())
                     logger.info("first_msg: %s", first_msg)
                     
-                    if first_msg["event"] == "recommendations":
-                        # Проверяем что рекомендации содержат HH IDs
+                    if first_msg["event"] == "career_consultation":
+                        # Проверяем что карьерная консультация содержит данные
+                        assert "data" in first_msg
+                        assert "consultation" in first_msg["data"]
+                        assert len(first_msg["data"]["consultation"]) > 0
+                        logger.info("✅ Получена карьерная консультация (длина: %d символов)", len(first_msg["data"]["consultation"]))
+                        
+                        # Получаем рекомендации
+                        recommendations_msg = json.loads(await ws.recv())
+                        logger.info("recommendations_msg: %s", recommendations_msg)
+                        assert recommendations_msg["event"] == "recommendations"
+                        assert "data" in recommendations_msg
+                        assert "hh_ids" in recommendations_msg["data"]
+                        assert len(recommendations_msg["data"]["hh_ids"]) == 5
+                        logger.info("✅ Получены рекомендации с HH IDs: %s", recommendations_msg["data"]["hh_ids"])
+                        
+                        # Получаем финальное сообщение
+                        final = json.loads(await ws.recv())
+                        logger.info("final: %s", final)
+                        assert final["event"] == "finished"
+                    elif first_msg["event"] == "recommendations":
+                        # Если карьерная консультация отключена, но рекомендации включены
                         assert "data" in first_msg
                         assert "hh_ids" in first_msg["data"]
                         assert len(first_msg["data"]["hh_ids"]) == 5

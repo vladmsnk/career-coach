@@ -3,10 +3,20 @@
 """
 from typing import List, Optional, Dict, Any
 from uuid import UUID
+from dataclasses import dataclass
 
 from app.services.recommendations.embeddings_service import EmbeddingsService
 from app.services.recommendations.qdrant_service import QdrantService, VacancyRecommendation
+from app.services.vacancies.vacancy_service import vacancy_service
+from app.services.chat.career_consultation_service import CareerConsultationService
 from app.domain.chat.repositories import ChatRepository
+
+
+@dataclass
+class CareerRecommendationResult:
+    """Результат карьерной рекомендации, включающий консультацию и вакансии"""
+    career_consultation: str
+    vacancy_recommendations: List[VacancyRecommendation]
 
 
 class RecommendationService:
@@ -16,6 +26,11 @@ class RecommendationService:
         self.chat_repo = chat_repo
         self.embeddings_service = EmbeddingsService()
         self.qdrant_service = QdrantService()
+        self.career_consultation_service = CareerConsultationService()
+        
+        # Инициализируем vacancy_service при первом использовании
+        if not vacancy_service.is_loaded():
+            vacancy_service.load_vacancies()
     
     async def get_recommendations_for_session(self, session_id: UUID) -> List[VacancyRecommendation]:
         """
@@ -74,6 +89,58 @@ class RecommendationService:
             import traceback
             traceback.print_exc()
             return []
+    
+    async def get_career_consultation_and_recommendations(self, session_id: UUID) -> Optional[CareerRecommendationResult]:
+        """
+        Получает полную карьерную консультацию и рекомендации вакансий.
+        
+        Args:
+            session_id: ID чат-сессии
+            
+        Returns:
+            CareerRecommendationResult с консультацией и рекомендациями или None при ошибке
+        """
+        try:
+            # 1. Получаем данные сессии
+            session_data = await self._get_session_data(session_id)
+            if not session_data:
+                print(f"⚠️ Данные сессии {session_id} не найдены")
+                return None
+            
+            # 2. Получаем рекомендации вакансий
+            print("🔍 Получение рекомендаций вакансий...")
+            vacancy_recommendations = await self.get_recommendations_for_session(session_id)
+            
+            if not vacancy_recommendations:
+                print("⚠️ Рекомендации вакансий не найдены")
+                return None
+            
+            # 3. Получаем подробные данные вакансий из CSV
+            hh_ids = [rec.hh_id for rec in vacancy_recommendations]
+            print(f"📋 Загрузка деталей для вакансий: {hh_ids}")
+            
+            vacancy_details = vacancy_service.get_vacancies_by_ids(hh_ids)
+            print(f"✅ Загружено {len(vacancy_details)} детальных описаний вакансий")
+            
+            # 4. Получаем карьерную консультацию
+            print("🤖 Получение карьерной консультации от ChatGPT...")
+            career_consultation = await self.career_consultation_service.get_career_consultation(
+                user_data=session_data,
+                vacancies=vacancy_details
+            )
+            
+            print(f"✅ Карьерная консультация получена (длина: {len(career_consultation)} символов)")
+            
+            return CareerRecommendationResult(
+                career_consultation=career_consultation,
+                vacancy_recommendations=vacancy_recommendations
+            )
+            
+        except Exception as e:
+            print(f"❌ Ошибка получения карьерной консультации: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
     
     async def _get_session_data(self, session_id: UUID) -> Optional[Dict[str, Any]]:
         """Получает collected_data из чат-сессии."""
