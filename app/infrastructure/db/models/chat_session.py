@@ -18,7 +18,7 @@ class ChatSessionModel(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     question_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     answers_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    current_module: Mapped[str] = mapped_column(String(20), nullable=False, default="context")
+    current_module: Mapped[str] = mapped_column(String(20), nullable=False, default="current_profile")
     collected_data: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSONB), nullable=False, default=dict)
 
 

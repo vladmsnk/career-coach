@@ -50,11 +50,11 @@ class RecommendationService:
                 return []
             
             # 2. Извлекаем необходимые поля
-            target_specialization = session_data.get('target_specialization')
+            target_area = session_data.get('target_area')
             preferred_activities = session_data.get('preferred_activities')
             
-            if not target_specialization:
-                print("⚠️ target_specialization не найден в данных сессии")
+            if not target_area:
+                print("⚠️ target_area не найден в данных сессии")
                 return []
             
             if not preferred_activities:
@@ -62,8 +62,8 @@ class RecommendationService:
                 return []
             
             print(f"📊 Данные для рекомендаций:")
-            print(f"   Специализация: {target_specialization}")
-            print(f"   Активности: {preferred_activities}")
+            print(f"   Целевая область: {target_area}")
+            print(f"   Предпочтительные активности: {preferred_activities}")
             
             # 3. Создаем эмбеддинг для preferred_activities
             embedding = await self.embeddings_service.create_embedding(preferred_activities)
@@ -76,7 +76,7 @@ class RecommendationService:
             # 4. Выполняем гибридный поиск в Qdrant
             recommendations = await self.qdrant_service.search_similar_vacancies(
                 embedding=embedding,
-                target_specialization=target_specialization,
+                target_specialization=target_area,
                 limit=5
             )
             

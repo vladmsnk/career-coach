@@ -26,11 +26,11 @@ class TestSessionDataFunctionality:
             status="active",
             question_index=1,
             answers_count=0,
-            current_module="goals",
+            current_module="career_goals",
             collected_data={"test_question": "test_answer"}
         )
         
-        assert session.current_module == "goals"
+        assert session.current_module == "career_goals"
         assert session.collected_data == {"test_question": "test_answer"}
         
         # Test default values
@@ -43,7 +43,7 @@ class TestSessionDataFunctionality:
             answers_count=0
         )
         
-        assert default_session.current_module == "context"
+        assert default_session.current_module == "current_profile"
         assert default_session.collected_data == {}
 
     @pytest.mark.asyncio
@@ -54,16 +54,16 @@ class TestSessionDataFunctionality:
         
         # Create session with default values
         session = await repo.create_session(user_id)
-        assert session.current_module == "context"
+        assert session.current_module == "current_profile"
         assert session.collected_data == {}
         
         # Update session data with multiple questions
         questions_and_answers = [
-            ("current_position", "Бэкенд-разработчик"),
-            ("years_in_position", "5"),
-            ("target_specialization", "Фулстек-разработчик"),
-            ("preferred_activities", "Разработка ПО"),
-            ("current_skills", "Программирование")
+            ("professional_area", "Бэкенд-разработчик"),
+            ("current_position", "Senior Python Developer"),
+            ("years_experience", "5"),
+            ("target_area", "Фулстек-разработчик"),
+            ("current_skills", "Python, FastAPI, PostgreSQL")
         ]
         
         for question_id, answer in questions_and_answers:
@@ -84,8 +84,8 @@ class TestSessionDataFunctionality:
         session = await repo.create_session(user_id)
         
         # Add collected data
-        await repo.update_session_data(session.id, "current_position", "Бэкенд-разработчик")
-        await repo.update_session_data(session.id, "years_in_position", "3")
+        await repo.update_session_data(session.id, "professional_area", "Бэкенд-разработчик")
+        await repo.update_session_data(session.id, "years_experience", "3")
         
         # Update other session fields - data should persist
         updated_session = await repo.update_session(
@@ -96,8 +96,8 @@ class TestSessionDataFunctionality:
         )
         
         # Verify collected data is preserved
-        assert updated_session.collected_data["current_position"] == "Бэкенд-разработчик"
-        assert updated_session.collected_data["years_in_position"] == "3"
+        assert updated_session.collected_data["professional_area"] == "Бэкенд-разработчик"
+        assert updated_session.collected_data["years_experience"] == "3"
         assert updated_session.question_index == 2
         assert updated_session.answers_count == 1
         

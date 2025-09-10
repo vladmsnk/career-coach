@@ -22,19 +22,19 @@ class MockChatRepository:
     
     def __init__(self):
         # Симулируем данные чат-сессии
-        self.mock_session_data = {
-            "current_position": "Бэкенд-разработчик",
-            "years_in_position": "3", 
-            "key_projects": "Разработал API на FastAPI",
-            "target_specialization": "Фулстек-разработчик",
-            "preferred_activities": "Разработка ПО, Системный анализ",
-            "position_ambitions": "Senior Developer",
+        self.        mock_session_data = {
+            "professional_area": "Бэкенд-разработчик",
+            "current_position": "Senior Python Developer",
+            "years_experience": "3",
+            "work_experience_projects": "Разработал REST API на FastAPI с PostgreSQL",
+            "target_area": "Фулстек-разработчик",
+            "preferred_activities": "Создание продуктов, разработка ПО, системный анализ",
+            "position_level_ambitions": "Senior",
             "salary_expectations": "180000",
-            "current_skills": "Программирование",
-            "tools_experience": "Python",
-            "soft_skills": "Коммуникация",
-            "education": "ВУЗ",
-            "learning_goals": "React, TypeScript"
+            "current_skills": "Python, FastAPI, PostgreSQL",
+            "tools_experience": "Python, Docker, Git",
+            "soft_skills": "Коммуникация, командная работа",
+            "education": "ВУЗ по информатике"
         }
     
     async def get_session(self, session_id):
@@ -65,7 +65,7 @@ async def test_recommendation_service_integration():
         print("❌ Внешние сервисы недоступны")
         print("🔧 Убедитесь что:")
         print("   1. Qdrant запущен: docker-compose up -d")
-        print("   2. Данные загружены: python scripts/load_vacancies_to_qdrant.py")
+        print("   2. Данные загружены: make load-vacancies")
         print("   3. OpenAI API ключ настроен в .env")
         return False
     

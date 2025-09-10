@@ -35,7 +35,7 @@ class InMemoryChatRepository(ChatRepository):
             status=status,
             question_index=question_index,
             answers_count=answers_count,
-            current_module="context",
+            current_module="current_profile",
             collected_data={},
         )
         self.sessions.setdefault(str(user_id), []).append(session)

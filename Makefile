@@ -78,7 +78,7 @@ install:
 	@echo "$(GREEN)✅ Зависимости установлены$(RESET)"
 
 # Полная настройка проекта
-setup: install db-up db-migrate
+setup: install db-up db-migrate load-vacancies
 	@echo "$(GREEN)✅ Проект настроен и готов к работе!$(RESET)"
 	@echo "$(BLUE)Запустите:$(RESET)"
 	@echo "  make dev              - для разработки"
@@ -236,9 +236,9 @@ env-example:
 		echo "$(YELLOW)⚠️  Файл .env уже существует$(RESET)"; \
 	fi
 
-# Загрузка данных вакансий в Qdrant
-load-vacancies:
-	@echo "$(BLUE)📊 Загрузка вакансий в Qdrant...$(RESET)"
+# Генерация эмбеддингов из вакансий (шаг 1 - долгий, дорогой)
+generate-embeddings:
+	@echo "$(BLUE)🤖 Генерация эмбеддингов из вакансий...$(RESET)"
 	@if [ -z "$(OPENAI_API_KEY)" ]; then \
 		echo "$(RED)❌ OPENAI_API_KEY не установлен!$(RESET)"; \
 		exit 1; \
@@ -249,6 +249,22 @@ load-vacancies:
 	fi
 	@export PYTHONPATH="$(PROJECT_ROOT):$$PYTHONPATH" && \
 	export OPENAI_API_KEY="$(OPENAI_API_KEY)" && \
-	$(PYTHON) scripts/load_vacancies_to_qdrant.py
+	$(PYTHON) scripts/generate_embeddings.py
+	@echo "$(GREEN)✅ Эмбеддинги сгенерированы и сохранены$(RESET)"
+
+# Загрузка готовых эмбеддингов в Qdrant (шаг 2 - быстрый)
+load-vacancies:
+	@echo "$(BLUE)📊 Загрузка готовых эмбеддингов в Qdrant...$(RESET)"
+	@if [ ! -f vacancies_with_embeddings.pickle ]; then \
+		echo "$(RED)❌ Файл vacancies_with_embeddings.pickle не найден!$(RESET)"; \
+		echo "$(YELLOW)💡 Сначала выполните: make generate-embeddings$(RESET)"; \
+		exit 1; \
+	fi
+	@export PYTHONPATH="$(PROJECT_ROOT):$$PYTHONPATH" && \
+	$(PYTHON) scripts/load_to_qdrant.py
 	@echo "$(GREEN)✅ Вакансии загружены в Qdrant$(RESET)"
+
+# Полный pipeline: генерация + загрузка (для первого запуска)
+setup-vacancies: generate-embeddings load-vacancies
+	@echo "$(GREEN)✅ Полная настройка вакансий завершена$(RESET)"
 
