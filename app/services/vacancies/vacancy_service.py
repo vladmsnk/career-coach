@@ -128,3 +128,4 @@ class VacancyService:
 
 # Создаем глобальный экземпляр сервиса (singleton)
 vacancy_service = VacancyService()
+

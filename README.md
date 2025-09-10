@@ -1,110 +1,59 @@
-## Chat Service Skeleton (FastAPI + PostgreSQL)
+# 🤖 Career Coach - AI Карьерный Консультант
 
-This repository contains a clean architecture skeleton for a chat service with two bounded contexts: authentication and chatbot. Logic is intentionally not implemented yet; only structure, interfaces, and stubs are provided.
+Интеллектуальная система карьерного консультирования с чат-ботом и персонализированными рекомендациями вакансий.
 
-### Stack
-- FastAPI
-- PostgreSQL
-- SQLAlchemy (async) + asyncpg
-- Pydantic Settings
+## ✨ Возможности
 
-### Project Structure (Clean Architecture)
-```
-app/
-  main.py
-  api/
-    v1/
-      routes/
-        auth.py
-        chat.py
-  core/
-    settings.py
-    db.py
-  domain/
-    auth/
-      entities.py
-      repositories.py
-    chat/
-      entities.py
-      repositories.py
-  application/
-    auth/
-      use_cases/
-        authenticate_user.py
-        register_user.py
-    chat/
-      use_cases/
-        start_chat_session.py
-        submit_user_message.py
-        bot_ask_question.py
-  infrastructure/
-    db/
-      base.py
-      models/
-        user.py
-        chat_session.py
-        message.py
-      repositories/
-        user_repository.py
-        chat_repository.py
-    auth/
-      password.py
-  schemas/
-    auth.py
-    chat.py
+- 🤖 **Интерактивный чат-бот** - проводит интервью для определения карьерных предпочтений
+- 🎯 **Умные рекомендации** - подбор вакансий на основе семантического анализа через OpenAI + Qdrant
+- 🔐 **Аутентификация** - безопасная регистрация и авторизация пользователей  
+- 📊 **Векторный поиск** - находит подходящие вакансии по смыслу, а не только по ключевым словам
+- 🚀 **Современный стек** - FastAPI + React + PostgreSQL + WebSockets
+
+## 🚀 Быстрый старт
+
+```bash
+# Полная настройка проекта одной командой
+make setup
+
+# Запуск в режиме разработки  
+make dev
 ```
 
-### Getting Started
-1. Create and activate a virtual environment (recommended):
+**Готово!** Откройте http://localhost:5173
+
+## 📖 Полное руководство
+
+**➡️ [RUN.md](./RUN.md) - Подробное руководство по установке и запуску**
+
+В файле `RUN.md` вы найдете:
+- Пошаговые инструкции по установке
+- Настройку системы рекомендаций вакансий  
+- Решение возможных проблем
+- Описание архитектуры и API
+- Команды для разработки и тестирования
+
+## 🛠️ Стек технологий
+
+**Backend:** FastAPI, PostgreSQL, SQLAlchemy, WebSockets, JWT  
+**Vector Search:** Qdrant, OpenAI Embeddings  
+**Frontend:** React, Vite  
+**DevOps:** Docker Compose, Alembic, Makefile
+
+## 🧪 Быстрое тестирование
+
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-```
-2. Copy `.env.example` to `.env` and ensure `DATABASE_URL` matches Docker Compose defaults:
-```bash
-cp .env.example .env
-# DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/chat_service
-```
-3. Start PostgreSQL using Docker:
-```bash
-docker compose up -d db
-```
-4. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-5. Initialize the database schema (creates tables):
-```bash
-PYTHONPATH=. python scripts/init_db.py
-```
-6. Run the service:
-```bash
-uvicorn app.main:app --reload
-```
-7. Open API docs:
-```bash
-open http://127.0.0.1:8000/docs
+make status    # Проверить статус всех сервисов
+make test      # Запустить автотесты
+make logs      # Посмотреть логи
 ```
 
-### Notes
-- Endpoints are defined but return 501 Not Implemented.
-- Use cases and repositories are stubs raising NotImplementedError.
-- JWT helper is a stub (`app/infrastructure/auth/jwt.py`). Replace with a real implementation later.
+## 📞 Полезные ссылки
 
-### Troubleshooting
-- ModuleNotFoundError: No module named 'app' when initializing DB:
-```bash
-PYTHONPATH=. python scripts/init_db.py
-```
-- Cannot connect to database: ensure the container is running and `DATABASE_URL` is correct:
-```bash
-docker compose ps
-```
-- Recreate tables from models (data loss):
-```bash
-docker compose down -v && docker compose up -d db
-PYTHONPATH=. python scripts/init_db.py
-```
+- 🌐 **Приложение**: http://localhost:5173  
+- 📚 **API Docs**: http://localhost:8000/docs
+- 🔍 **Qdrant Dashboard**: http://localhost:6333/dashboard
 
+---
 
-
+*Подробную документацию см. в [RUN.md](./RUN.md)*
