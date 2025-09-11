@@ -53,6 +53,7 @@ services:
       QDRANT_COLLECTION: ${QDRANT_COLLECTION:-vacancies_tasks}
       ENABLE_VACANCY_RECOMMENDATIONS: ${ENABLE_VACANCY_RECOMMENDATIONS:-false}
       APP_ENV: production
+      PYTHONPATH: /app
     volumes:
       # Mount embeddings file if it exists
       - ./vacancies_with_embeddings.pickle:/app/vacancies_with_embeddings.pickle:ro

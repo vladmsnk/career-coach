@@ -113,6 +113,8 @@ docker-compose -f docker-compose.prod.yml logs -f
 docker-compose -f docker-compose.prod.yml exec backend alembic upgrade head
 ```
 
+**Примечание**: PYTHONPATH уже настроен в контейнере, поэтому команда работает без дополнительных параметров.
+
 ### 7. Загрузка данных вакансий (если есть файл)
 
 ```bash
