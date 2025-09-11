@@ -33,8 +33,16 @@ def do_run_migrations(connection) -> None:
 
 
 async def run_migrations_online() -> None:
+    # Получаем конфигурацию из alembic.ini
+    configuration = config.get_section(config.config_ini_section, {})
+    
+    # Переопределяем URL из переменных окружения если доступно
+    # Это позволяет работать и локально (alembic.ini) и в Docker (DATABASE_URL)
+    if settings.database_url:
+        configuration["sqlalchemy.url"] = settings.database_url
+    
     connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
