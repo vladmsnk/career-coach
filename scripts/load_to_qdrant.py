@@ -22,8 +22,8 @@ from qdrant_client.http.models import (
 )
 
 # ==================== НАСТРОЙКИ ====================
-QDRANT_URL = "http://localhost:6333"
-COLLECTION_NAME = "vacancies_tasks"
+QDRANT_URL = os.getenv('QDRANT_URL', "http://localhost:6333")
+COLLECTION_NAME = os.getenv('QDRANT_COLLECTION', "vacancies_tasks")
 INPUT_FILE = "vacancies_with_embeddings.pickle"
 UPLOAD_BATCH_SIZE = 256
 
