@@ -16,12 +16,12 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from tenacity import retry, wait_exponential_jitter, stop_after_attempt, retry_if_exception_type
-from openai import AsyncOpenAI, APIError, RateLimitError, APITimeoutError
+from yandex_cloud_ml_sdk import YCloudML
 import tiktoken
 
 # ==================== НАСТРОЙКИ ====================
-MODEL = "text-embedding-3-small"
-DIM = 768  # 1536 максимум; 768 для экономии памяти
+MODEL = "text-search-doc"  # Yandex embeddings model через SDK
+DIM = 256  # Yandex embeddings dimension
 CONCURRENCY = 2  # УМЕНЬШЕНО для обхода рейт-лимитов
 BATCH_SIZE = 25   # УМЕНЬШЕНО для обхода рейт-лимитов
 DELAY_BETWEEN_BATCHES = 2  # задержка между батчами в секундах
@@ -52,23 +52,37 @@ def chunk_by_tokens(text: str, max_tokens: int = 400, overlap: int = 40) -> List
 @retry(
     wait=wait_exponential_jitter(initial=2, max=60),
     stop=stop_after_attempt(10),
-    retry=retry_if_exception_type((RateLimitError, APITimeoutError, APIError))
+    retry=retry_if_exception_type((Exception,))
 )
-async def embed_batch(client: AsyncOpenAI, texts: List[str], *, dimensions: int = DIM) -> np.ndarray:
-    """Один батч в Embeddings API с улучшенными ретраями."""
+async def embed_batch(sdk: YCloudML, texts: List[str], *, dimensions: int = DIM) -> np.ndarray:
+    """Один батч в Yandex Embeddings API через SDK с улучшенными ретраями."""
     try:
-        resp = await client.embeddings.create(
-            model=MODEL,
-            input=texts,
-            dimensions=dimensions
-        )
-        vecs = np.array([d.embedding for d in resp.data], dtype=np.float32)
+        embeddings_list = []
+        
+        # Обрабатываем тексты по одному через SDK
+        for text in texts:
+            # Выполняем синхронный вызов в executor для совместимости с async
+            import functools
+            loop = asyncio.get_event_loop()
+            
+            # Используем SDK для создания эмбеддинга
+            embedding_model = sdk.models.text_embeddings(MODEL)
+            result = await loop.run_in_executor(
+                None, 
+                functools.partial(embedding_model.run, text)
+            )
+            
+            # Извлекаем эмбеддинг из результата (SDK возвращает TextEmbeddingsModelResult)
+            embedding = np.array(result.embedding, dtype=np.float32)
+            
+            embeddings_list.append(embedding)
+        
+        vecs = np.array(embeddings_list, dtype=np.float32)
+        
         # L2-нормирование под cosine/IP
         norms = np.linalg.norm(vecs, axis=1, keepdims=True) + 1e-12
         return vecs / norms
-    except RateLimitError as e:
-        print(f"⚠️  Рейт-лимит! Подождем дольше... {e}")
-        raise
+        
     except Exception as e:
         print(f"❌ Ошибка в embed_batch: {e}")
         raise
@@ -79,7 +93,14 @@ async def embed_long_docs(docs: List[str]) -> np.ndarray:
         print("⚠️  Пустой список документов!")
         return np.array([]).reshape(0, DIM)
     
-    client = AsyncOpenAI()
+    # Инициализируем Yandex Cloud ML SDK
+    api_key = os.getenv("YANDEX_GPT_API_KEY")
+    folder_id = os.getenv("YANDEX_GPT_FOLDER_ID")
+    
+    if not api_key or not folder_id:
+        raise ValueError("YANDEX_GPT_API_KEY и YANDEX_GPT_FOLDER_ID должны быть установлены")
+    
+    sdk = YCloudML(folder_id=folder_id, auth=api_key)
     sem = asyncio.Semaphore(CONCURRENCY)
 
     print(f"🔄 Подготовка {len(docs)} документов для эмбеддинга...")
@@ -106,7 +127,7 @@ async def embed_long_docs(docs: List[str]) -> np.ndarray:
                 await asyncio.sleep(DELAY_BETWEEN_BATCHES)
             batch_texts = doc_spans[start:end]
             print(f"   🔄 Батч {batch_num + 1}: обрабатываем спаны {start}-{end} ({len(batch_texts)} элементов)")
-            return await embed_batch(client, batch_texts)
+            return await embed_batch(sdk, batch_texts)
 
     # Создаем задачи для батчей
     tasks = []
@@ -139,6 +160,7 @@ async def embed_long_docs(docs: List[str]) -> np.ndarray:
 
     result = np.array(doc_vecs, dtype=np.float32)
     print(f"✅ Итоговые эмбеддинги документов: {result.shape}")
+    
     return result
 
 def parse_vacancy_from_answers(answers_list) -> Dict[str, Any]:
@@ -258,7 +280,7 @@ def clean_and_validate_data(df: pd.DataFrame) -> pd.DataFrame:
 
 async def main():
     """Основная функция для генерации эмбеддингов."""
-    print("🚀 ГЕНЕРАЦИЯ ЭМБЕДДИНГОВ ДЛЯ ВАКАНСИЙ")
+    print("🚀 ГЕНЕРАЦИЯ ЭМБЕДДИНГОВ ДЛЯ ВАКАНСИЙ (Yandex API)")
     print("=" * 50)
     
     # Проверяем наличие входного файла
@@ -267,11 +289,18 @@ async def main():
         print("💡 Убедитесь, что файл scored_vacs.pickle находится в корне проекта")
         return
     
-    # Проверяем OpenAI API ключ
-    api_key = os.getenv("OPENAI_API_KEY")
+    # Проверяем Yandex GPT API ключи
+    api_key = os.getenv("YANDEX_GPT_API_KEY")
+    folder_id = os.getenv("YANDEX_GPT_FOLDER_ID")
+    
     if not api_key:
-        print("❌ OpenAI API ключ не найден!")
-        print("💡 Установите переменную окружения: export OPENAI_API_KEY='your-key'")
+        print("❌ Yandex GPT API ключ не найден!")
+        print("💡 Установите переменную окружения: export YANDEX_GPT_API_KEY='your-key'")
+        return
+        
+    if not folder_id:
+        print("❌ Yandex GPT folder_id не найден!")
+        print("💡 Установите переменную окружения: export YANDEX_GPT_FOLDER_ID='your-folder-id'")
         return
     
     # Загружаем данные

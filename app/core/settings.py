@@ -8,7 +8,6 @@ class Settings(BaseSettings):
     
     # Recommendations system
     enable_vacancy_recommendations: bool = False  # Feature flag - по умолчанию выключено
-    openai_api_key: str = "" 
     yandex_gpt_api_key: str = ""
     yandex_gpt_folder_id: str = ""
     qdrant_url: str = "http://localhost:6333"

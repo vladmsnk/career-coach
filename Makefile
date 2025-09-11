@@ -21,7 +21,6 @@ PYTEST := $(VENV_BIN)/pytest
 DATABASE_URL ?= postgresql+asyncpg://user:password@localhost:5432/chat_service
 SECRET_KEY ?= changeme
 ENABLE_VACANCY_RECOMMENDATIONS ?= false
-OPENAI_API_KEY ?= 
 YANDEX_GPT_API_KEY ?= 
 YANDEX_GPT_FOLDER_ID ?= 
 QDRANT_URL ?= http://localhost:6333
@@ -95,7 +94,6 @@ backend:
 	export DATABASE_URL="$(DATABASE_URL)" && \
 	export SECRET_KEY="$(SECRET_KEY)" && \
 	export ENABLE_VACANCY_RECOMMENDATIONS="$(ENABLE_VACANCY_RECOMMENDATIONS)" && \
-	export OPENAI_API_KEY="$(OPENAI_API_KEY)" && \
 	export QDRANT_URL="$(QDRANT_URL)" && \
 	export QDRANT_COLLECTION="$(QDRANT_COLLECTION)" && \
 	$(UVICORN) app.main:app --host 127.0.0.1 --port 8000 --reload
@@ -155,13 +153,7 @@ test:
 # Тесты системы рекомендаций
 test-recommendations:
 	@echo "$(BLUE)🎯 Тестирование системы рекомендаций...$(RESET)"
-	@if [ -z "$(OPENAI_API_KEY)" ]; then \
-		echo "$(RED)❌ OPENAI_API_KEY не установлен!$(RESET)"; \
-		echo "$(YELLOW)Добавьте ключ в .env файл или переменную окружения$(RESET)"; \
-		exit 1; \
-	fi
 	@export PYTHONPATH="$(PROJECT_ROOT):$$PYTHONPATH" && \
-	export OPENAI_API_KEY="$(OPENAI_API_KEY)" && \
 	export ENABLE_VACANCY_RECOMMENDATIONS="true" && \
 	$(PYTHON) scripts/test_recommendations_integration.py
 	@echo "$(GREEN)✅ Тесты рекомендаций завершены$(RESET)"
@@ -199,11 +191,6 @@ status:
 	@echo "DATABASE_URL: $(DATABASE_URL)"
 	@echo "ENABLE_VACANCY_RECOMMENDATIONS: $(ENABLE_VACANCY_RECOMMENDATIONS)"
 	@echo "QDRANT_URL: $(QDRANT_URL)"
-	@if [ -n "$(OPENAI_API_KEY)" ]; then \
-		echo "OPENAI_API_KEY: ✅ Установлен"; \
-	else \
-		echo "OPENAI_API_KEY: ❌ Не установлен"; \
-	fi
 
 # Просмотр логов
 logs:
@@ -229,11 +216,11 @@ env-example:
 		echo "DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/chat_service" >> .env; \
 		echo "SECRET_KEY=changeme" >> .env; \
 		echo "ENABLE_VACANCY_RECOMMENDATIONS=false" >> .env; \
-		echo "OPENAI_API_KEY=" >> .env; \
+ \
 		echo "QDRANT_URL=http://localhost:6333" >> .env; \
 		echo "QDRANT_COLLECTION=vacancies_tasks" >> .env; \
 		echo "$(GREEN)✅ Файл .env создан$(RESET)"; \
-		echo "$(YELLOW)⚠️  Не забудьте заполнить OPENAI_API_KEY для работы рекомендаций$(RESET)"; \
+		echo "$(YELLOW)⚠️  Не забудьте заполнить YANDEX_GPT_API_KEY и YANDEX_GPT_FOLDER_ID для работы рекомендаций$(RESET)"; \
 	else \
 		echo "$(YELLOW)⚠️  Файл .env уже существует$(RESET)"; \
 	fi
@@ -241,8 +228,8 @@ env-example:
 # Генерация эмбеддингов из вакансий (шаг 1 - долгий, дорогой)
 generate-embeddings:
 	@echo "$(BLUE)🤖 Генерация эмбеддингов из вакансий...$(RESET)"
-	@if [ -z "$(OPENAI_API_KEY)" ]; then \
-		echo "$(RED)❌ OPENAI_API_KEY не установлен!$(RESET)"; \
+	@if [ -z "$(YANDEX_GPT_API_KEY)" ]; then \
+		echo "$(RED)❌ YANDEX_GPT_API_KEY не установлен!$(RESET)"; \
 		exit 1; \
 	fi
 	@if [ ! -f scored_vacs.pickle ]; then \
@@ -250,7 +237,6 @@ generate-embeddings:
 		exit 1; \
 	fi
 	@export PYTHONPATH="$(PROJECT_ROOT):$$PYTHONPATH" && \
-	export OPENAI_API_KEY="$(OPENAI_API_KEY)" && \
 	$(PYTHON) scripts/generate_embeddings.py
 	@echo "$(GREEN)✅ Эмбеддинги сгенерированы и сохранены$(RESET)"
 
