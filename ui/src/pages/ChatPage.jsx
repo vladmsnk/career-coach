@@ -32,7 +32,20 @@ function ChatPage({ token, onLogout }) {
 
   const connectWebSocket = () => {
     try {
-      const wsUrl = `ws://127.0.0.1:8000/api/v1/chat/ws?token=${token}`;
+      // Определяем WebSocket URL в зависимости от окружения
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const isDevelopment = window.location.port === '5173' || window.location.port === '3000';
+      
+      let wsUrl;
+      if (isDevelopment) {
+        // Development режим - подключаемся напрямую к backend
+        wsUrl = `ws://127.0.0.1:8000/api/v1/chat/ws?token=${token}`;
+      } else {
+        // Production режим - подключаемся через nginx proxy
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${protocol}//${window.location.host}/api/v1/chat/ws?token=${token}`;
+      }
+      
       console.log('🔌 Connecting to WebSocket:', wsUrl);
       const ws = new WebSocket(wsUrl);
       
@@ -148,7 +161,7 @@ function ChatPage({ token, onLogout }) {
 
       ws.onerror = (error) => {
         console.error('❌ WebSocket error:', error);
-        setError('Ошибка соединения с сервером. Проверьте что backend запущен на порту 8000');
+        setError('Ошибка соединения с сервером');
         setIsConnected(false);
       };
 
