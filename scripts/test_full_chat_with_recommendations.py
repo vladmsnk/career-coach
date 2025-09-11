@@ -165,7 +165,7 @@ async def show_system_requirements():
     
     requirements = [
         ("🐳 Qdrant", "docker-compose up -d", "http://localhost:6333/health"),
-        ("📊 Данные вакансий", "python scripts/load_vacancies_to_qdrant.py", "13,511 вакансий в коллекции"),
+        ("📊 Данные вакансий", "make load-vacancies", "13,511 вакансий в коллекции"),
         ("🔑 OpenAI API ключ", "OPENAI_API_KEY в .env", "Для создания эмбеддингов"),
         ("⚙️  Feature flag", "ENABLE_VACANCY_RECOMMENDATIONS=true", "Активация рекомендаций"),
     ]

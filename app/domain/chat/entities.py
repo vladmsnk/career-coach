@@ -12,7 +12,7 @@ class ChatSession:
     status: str
     question_index: int
     answers_count: int
-    current_module: str = "context"
+    current_module: str = "current_profile"
     collected_data: Dict[str, Any] = field(default_factory=dict)
 
 

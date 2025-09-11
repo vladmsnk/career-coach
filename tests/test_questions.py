@@ -18,11 +18,11 @@ class TestInterviewModules:
         assert len(INTERVIEW_MODULES) == 3
         
         # Check module keys
-        expected_modules = {"context", "goals", "skills"}
+        expected_modules = {"current_profile", "career_goals", "competencies"}
         assert set(INTERVIEW_MODULES.keys()) == expected_modules
         
         # Check each module has title and questions
-        expected_question_counts = {"context": 3, "goals": 4, "skills": 5}
+        expected_question_counts = {"current_profile": 4, "career_goals": 4, "competencies": 4}
         for module_key, module_data in INTERVIEW_MODULES.items():
             assert "title" in module_data
             assert "questions" in module_data
@@ -65,7 +65,7 @@ class TestQuestionsIntegration:
         """Test get_all_questions function and metadata"""
         questions = get_all_questions()
         
-        # Should return 12 questions total (3+4+5 per module)
+        # Should return 12 questions total (4+4+4 per module)
         assert len(questions) == 12
         
         # Each question should have module metadata
@@ -75,13 +75,13 @@ class TestQuestionsIntegration:
             assert "global_index" in question
             assert question["global_index"] == i
             
-            # Check module assignment: context(0-2), goals(3-6), skills(7-11)
-            if i < 3:
-                assert question["module"] == "context"
-            elif i < 7:
-                assert question["module"] == "goals"
+            # Check module assignment: current_profile(0-3), career_goals(4-7), competencies(8-11)
+            if i < 4:
+                assert question["module"] == "current_profile"
+            elif i < 8:
+                assert question["module"] == "career_goals"
             else:
-                assert question["module"] == "skills"
+                assert question["module"] == "competencies"
     
     def test_questions_backward_compatibility(self):
         """Test QUESTIONS constant and unique IDs"""

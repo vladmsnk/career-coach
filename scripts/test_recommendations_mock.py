@@ -85,7 +85,7 @@ async def test_qdrant_connection_only():
     
     if not service.check_collection():
         print("⚠️ Коллекция vacancies_tasks не найдена.")
-        print("   Запустите: python scripts/load_vacancies_to_qdrant.py")
+        print("   Запустите: make load-vacancies")
         return False
     
     print("✅ Qdrant готов к использованию")
@@ -200,7 +200,7 @@ async def main():
             print("\n🎯 ДЛЯ ПОЛНОЙ ФУНКЦИОНАЛЬНОСТИ НУЖНО:")
             print("1. Реальный OpenAI API ключ в .env файле")
             print("2. Запущенный Qdrant: docker-compose up -d")
-            print("3. Загруженные данные: python scripts/load_vacancies_to_qdrant.py")
+            print("3. Загруженные данные: make load-vacancies")
         else:
             print("⚠️ ОБНАРУЖЕНЫ ПРОБЛЕМЫ В АРХИТЕКТУРЕ")
             print("🔧 Проверьте ошибки выше")

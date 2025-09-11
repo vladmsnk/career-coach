@@ -81,44 +81,40 @@ class CareerConsultationService:
         """Формирует контекст пользователя для ChatGPT"""
         context_parts = []
         
-        # Текущая позиция и опыт
+        # Текущий профиль
+        professional_area = user_data.get('professional_area', 'Не указано')
         current_position = user_data.get('current_position', 'Не указано')
-        years_in_position = user_data.get('years_in_position', 'Не указано')
-        context_parts.append(f"Текущая должность: {current_position} (стаж: {years_in_position} лет)")
+        years_experience = user_data.get('years_experience', 'Не указано')
+        context_parts.append(f"Профессиональная сфера: {professional_area}")
+        context_parts.append(f"Текущая должность: {current_position}")
+        context_parts.append(f"Опыт работы: {years_experience} лет")
         
-        # Ключевые проекты
-        key_projects = user_data.get('key_projects', '')
-        if key_projects:
-            context_parts.append(f"Ключевые проекты: {key_projects}")
+        # Опыт и проекты
+        work_experience_projects = user_data.get('work_experience_projects', '')
+        if work_experience_projects:
+            context_parts.append(f"Опыт работы и проекты: {work_experience_projects}")
         
-        # Цели
-        target_specialization = user_data.get('target_specialization', 'Не указано')
+        # Карьерные цели
+        target_area = user_data.get('target_area', 'Не указано')
         preferred_activities = user_data.get('preferred_activities', 'Не указано')
-        position_ambitions = user_data.get('position_ambitions', 'Не указано')
+        position_level_ambitions = user_data.get('position_level_ambitions', 'Не указано')
         salary_expectations = user_data.get('salary_expectations', 'Не указано')
         
-        context_parts.append(f"Желаемая специализация: {target_specialization}")
+        context_parts.append(f"Желаемая область: {target_area}")
         context_parts.append(f"Интересные активности: {preferred_activities}")
-        context_parts.append(f"Карьерные амбиции (3-5 лет): {position_ambitions}")
+        context_parts.append(f"Амбиции по уровню: {position_level_ambitions}")
         context_parts.append(f"Ожидания по зарплате: {salary_expectations} руб/мес")
         
-        # Навыки
+        # Компетенции
         current_skills = user_data.get('current_skills', 'Не указано')
         tools_experience = user_data.get('tools_experience', 'Не указано')
         soft_skills = user_data.get('soft_skills', 'Не указано')
+        education = user_data.get('education', 'Не указано')
         
         context_parts.append(f"Технические навыки: {current_skills}")
         context_parts.append(f"Инструменты и технологии: {tools_experience}")
         context_parts.append(f"Soft skills: {soft_skills}")
-        
-        # Образование и планы обучения
-        education = user_data.get('education', '')
-        learning_goals = user_data.get('learning_goals', '')
-        
-        if education:
-            context_parts.append(f"Образование: {education}")
-        if learning_goals:
-            context_parts.append(f"Планы обучения: {learning_goals}")
+        context_parts.append(f"Образование: {education}")
         
         return "\n".join(context_parts)
     
