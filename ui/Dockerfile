@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy source code and build
 COPY . .
@@ -13,6 +13,9 @@ RUN npm run build
 
 # Stage 2: Serve with nginx
 FROM nginx:alpine
+
+# Install curl for health check
+RUN apk add --no-cache curl
 
 # Copy built app
 COPY --from=builder /app/dist /usr/share/nginx/html

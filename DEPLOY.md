@@ -79,11 +79,23 @@ ls -la vacancies_with_embeddings.pickle
 ### 4. Запуск приложения
 
 ```bash
-# Запуск всех сервисов
-docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
+# Сборка и запуск всех сервисов
+docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 
 # Проверка статуса контейнеров
 docker-compose -f docker-compose.prod.yml ps
+```
+
+**Если возникли ошибки сборки:**
+```bash
+# Остановить контейнеры
+docker-compose -f docker-compose.prod.yml --env-file .env.prod down
+
+# Пересобрать с очисткой кеша
+docker-compose -f docker-compose.prod.yml --env-file .env.prod build --no-cache
+
+# Запустить заново
+docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
 
 ### 5. Ожидание инициализации
