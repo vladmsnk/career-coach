@@ -22,6 +22,8 @@ DATABASE_URL ?= postgresql+asyncpg://user:password@localhost:5432/chat_service
 SECRET_KEY ?= changeme
 ENABLE_VACANCY_RECOMMENDATIONS ?= false
 OPENAI_API_KEY ?= 
+YANDEX_GPT_API_KEY ?= 
+YANDEX_GPT_FOLDER_ID ?= 
 QDRANT_URL ?= http://localhost:6333
 QDRANT_COLLECTION ?= vacancies_tasks
 

@@ -130,6 +130,8 @@ DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/chat_service
 SECRET_KEY=your-secret-key-here
 ENABLE_VACANCY_RECOMMENDATIONS=false
 OPENAI_API_KEY=
+YANDEX_GPT_API_KEY=
+YANDEX_GPT_FOLDER_ID=
 QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION=vacancies_tasks
 EOF
@@ -154,8 +156,9 @@ npm run dev
 
 Система рекомендаций вакансий работает на основе векторного поиска и требует дополнительной настройки.
 
-### 1. Получение OpenAI API ключа
+### 1. Получение API ключей
 
+#### OpenAI API
 1. Зарегистрируйтесь на https://platform.openai.com/
 2. Создайте API ключ
 3. Добавьте ключ в переменные окружения:
@@ -164,6 +167,19 @@ npm run dev
 export OPENAI_API_KEY="your-openai-api-key-here"
 # или добавьте в .env файл
 echo "OPENAI_API_KEY=your-key-here" >> .env
+```
+
+#### Yandex GPT API
+1. Создайте аккаунт в Yandex Cloud
+2. Получите API ключ и folder_id
+3. Добавьте credentials в переменные окружения:
+
+```bash
+export YANDEX_GPT_API_KEY="your-yandex-gpt-api-key"
+export YANDEX_GPT_FOLDER_ID="your-folder-id"
+# или добавьте в .env файл
+echo "YANDEX_GPT_API_KEY=your-key-here" >> .env
+echo "YANDEX_GPT_FOLDER_ID=your-folder-id" >> .env
 ```
 
 ### 2. Подготовка данных вакансий
