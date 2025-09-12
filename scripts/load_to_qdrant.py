@@ -22,18 +22,11 @@ from qdrant_client.http.models import (
 )
 
 # ==================== НАСТРОЙКИ ====================
-QDRANT_URL = os.getenv('QDRANT_URL', "http://localhost:6333")
-COLLECTION_NAME = os.getenv('QDRANT_COLLECTION', "vacancies_tasks")
-# Поддержка как основного, так и тестового файла
-INPUT_FILE = os.getenv('EMBEDDINGS_FILE', None)
-if not INPUT_FILE:
-    # Автоопределение файла
-    if Path("vacancies_with_embeddings_test.pickle").exists():
-        INPUT_FILE = "vacancies_with_embeddings_test.pickle"
-        print("🔍 Найден тестовый файл эмбеддингов")
-    else:
-        INPUT_FILE = "vacancies_with_embeddings.pickle"
-        print("🔍 Используем основной файл эмбеддингов")
+QDRANT_URL = "http://localhost:6333"  # Локальное подключение
+COLLECTION_NAME = "vacancies_tasks"
+# Используем основной файл по умолчанию
+INPUT_FILE = os.getenv('EMBEDDINGS_FILE', "vacancies_with_embeddings.pickle")
+print(f"🔍 Используем файл эмбеддингов: {INPUT_FILE}")
 UPLOAD_BATCH_SIZE = 256
 
 # ==================== QDRANT ФУНКЦИИ ====================
