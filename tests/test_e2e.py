@@ -1,9 +1,13 @@
 import os
+import sys
 import time
 import json
 import asyncio
 import uuid
 from multiprocessing import Process
+
+# Add project root to path for imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import requests
 from alembic import command
@@ -48,6 +52,13 @@ def test_successful_dialog() -> None:
             .replace("postgresql://", "postgresql+asyncpg://")
         )
         os.environ["DATABASE_URL"] = async_url
+        os.environ["PYTHONPATH"] = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        
+        # Set other required environment variables for testing
+        os.environ.setdefault("SECRET_KEY", "test_secret_key")
+        os.environ.setdefault("ENABLE_VACANCY_RECOMMENDATIONS", "false")  # Disable recommendations for faster test
+        os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
+        os.environ.setdefault("QDRANT_COLLECTION", "vacancies_tasks")
 
         alembic_cfg = Config("alembic.ini")
         alembic_cfg.set_main_option("sqlalchemy.url", async_url)
@@ -80,13 +91,21 @@ def test_successful_dialog() -> None:
 
                 uri = f"ws://127.0.0.1:8000/api/v1/chat/ws?token={token}"
                 async with websockets.connect(uri) as ws:
-                    # Answer all 12 questions for complete interview
+                    # Answer all 12 questions for complete interview (correctly matched to question types)
                     answers = [
-                        "Бэкенд-разработчик", "5", "Разработал микросервисы на Python",
-                        "Фулстек-разработчик", "Разработка ПО", "Senior Developer", 
-                        "150000", "Программирование", "Python", "Коммуникация", 
-                        "МГУ, курсы по Python", "Изучение Kubernetes"
-                    ]
+                        "Бэкенд-разработчик",                    # 1. professional_area (select)
+                        "Python-разработчик",                    # 2. current_position (text)
+                        "5",                                     # 3. years_experience (number)
+                        "Разработал микросервисы на Python",     # 4. work_experience_projects (text)
+                        "Фулстек-разработчик",                   # 5. target_area (select)
+                        "Разработка ПО",                         # 6. preferred_activities (text)
+                        "Senior",                                # 7. position_level_ambitions (select) 
+                        "150000",                                # 8. salary_expectations (range)
+                        "Python, FastAPI, PostgreSQL",          # 9. current_skills (text)
+                        "Docker, Kubernetes, Git",               # 10. tools_experience (text)
+                        "Коммуникация, лидерство",               # 11. soft_skills (text)
+                        "МГУ, курсы по Python"                   # 12. education (text)
+                        ]
                     
                     for i, answer in enumerate(answers):
                         raw = await ws.recv()
@@ -106,7 +125,7 @@ def test_successful_dialog() -> None:
                         assert "consultation" in first_msg["data"]
                         assert len(first_msg["data"]["consultation"]) > 0
                         logger.info("✅ Получена карьерная консультация (длина: %d символов)", len(first_msg["data"]["consultation"]))
-                        
+
                         # Получаем рекомендации
                         recommendations_msg = json.loads(await ws.recv())
                         logger.info("recommendations_msg: %s", recommendations_msg)
@@ -115,7 +134,7 @@ def test_successful_dialog() -> None:
                         assert "hh_ids" in recommendations_msg["data"]
                         assert len(recommendations_msg["data"]["hh_ids"]) == 5
                         logger.info("✅ Получены рекомендации с HH IDs: %s", recommendations_msg["data"]["hh_ids"])
-                        
+
                         # Получаем финальное сообщение
                         final = json.loads(await ws.recv())
                         logger.info("final: %s", final)
@@ -126,7 +145,7 @@ def test_successful_dialog() -> None:
                         assert "hh_ids" in first_msg["data"]
                         assert len(first_msg["data"]["hh_ids"]) == 5
                         logger.info("✅ Получены рекомендации с HH IDs: %s", first_msg["data"]["hh_ids"])
-                        
+
                         # Получаем финальное сообщение
                         final = json.loads(await ws.recv())
                         logger.info("final: %s", final)

@@ -132,14 +132,22 @@ def test_chat_flow():
     app.dependency_overrides[get_chat_repository] = lambda: repo
     user_id = str(uuid4())
     token = create_access_token(user_id)
-    # Test first 3 questions - need to provide 12 answers for full interview now
+    # Test all 12 questions - need to provide correct answers for each question type
     answers = [
-        "Бэкенд-разработчик", "5", "Разработал микросервисы на Python",
-        "Фулстек-разработчик", "Разработка ПО", "Senior Developer", 
-        "150000", "Программирование", "Python", "Коммуникация", 
-        "МГУ, курсы по Python", "Изучение Kubernetes"
+        "Бэкенд-разработчик",                    # 1. professional_area (select)
+        "Python-разработчик",                    # 2. current_position (text)
+        "5",                                     # 3. years_experience (number)
+        "Разработал микросервисы на Python",     # 4. work_experience_projects (text)
+        "Фулстек-разработчик",                   # 5. target_area (select)
+        "Разработка ПО",                         # 6. preferred_activities (text)
+        "Senior",                                # 7. position_level_ambitions (select) 
+        "150000",                                # 8. salary_expectations (range)
+        "Python, FastAPI, PostgreSQL",          # 9. current_skills (text)
+        "Docker, Kubernetes, Git",               # 10. tools_experience (text)
+        "Коммуникация, лидерство",               # 11. soft_skills (text)
+        "МГУ, курсы по Python"                   # 12. education (text)
     ]
-    ws = FakeWebSocket(answers, delay=0.02)
+    ws = FakeWebSocket(answers, disconnect_on_empty=True, delay=0.02)
     asyncio.run(chat_websocket(ws, token, repo))
     prompts = [m["id"] for m in ws.sent if "id" in m]
     # Check that we have all 12 questions
@@ -156,13 +164,21 @@ def test_resume_session_returns_previous_messages():
     token = create_access_token(user_id)
     ws1 = FakeWebSocket(["Бэкенд-разработчик"], disconnect_on_empty=True)
     asyncio.run(chat_websocket(ws1, token, repo))
-    # Provide remaining answers to complete the interview
+    # Provide remaining answers to complete the interview (questions 2-12)
     remaining_answers = [
-        "5", "Разработал микросервисы на Python", "Фулстек-разработчик", 
-        "Разработка ПО", "Senior Developer", "150000", "Программирование", 
-        "Python", "Коммуникация", "МГУ, курсы по Python", "Изучение Kubernetes"
+        "Python-разработчик",                    # 2. current_position (text)
+        "5",                                     # 3. years_experience (number)
+        "Разработал микросервисы на Python",     # 4. work_experience_projects (text)
+        "Фулстек-разработчик",                   # 5. target_area (select)
+        "Разработка ПО",                         # 6. preferred_activities (text)
+        "Senior",                                # 7. position_level_ambitions (select) 
+        "150000",                                # 8. salary_expectations (range)
+        "Python, FastAPI, PostgreSQL",          # 9. current_skills (text)
+        "Docker, Kubernetes, Git",               # 10. tools_experience (text)
+        "Коммуникация, лидерство",               # 11. soft_skills (text)
+        "МГУ, курсы по Python"                   # 12. education (text)
     ]
-    ws2 = FakeWebSocket(remaining_answers, delay=0.02)
+    ws2 = FakeWebSocket(remaining_answers, disconnect_on_empty=True, delay=0.02)
     asyncio.run(chat_websocket(ws2, token, repo))
     assert ws2.sent[0] == {"role": "bot", "content": QUESTIONS[0]["prompt"]}
     assert ws2.sent[1] == {"role": "user", "content": "Бэкенд-разработчик"}

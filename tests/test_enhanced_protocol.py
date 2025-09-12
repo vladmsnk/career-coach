@@ -1,9 +1,13 @@
 """
 Tests for enhanced WebSocket protocol with metadata
 """
+import os
+import sys
 import pytest
 import asyncio
 from uuid import uuid4
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.api.v1.routes.chat import WebSocketHandler
 from app.domain.chat.questions import QUESTIONS
@@ -26,7 +30,9 @@ class MockWebSocket:
             message = self.received_messages[self.message_index]
             self.message_index += 1
             return message
-        return "Default Answer"
+        # Disconnect when no more messages to prevent infinite loops
+        from fastapi import WebSocketDisconnect
+        raise WebSocketDisconnect()
 
 
 class TestEnhancedWebSocketProtocol:
@@ -145,9 +151,9 @@ class TestEnhancedWebSocketProtocol:
                 
                 modules_tested.add(question["module"])
         
-        # Should have tested all 3 modules
+        # Should have tested all 3 modules  
         assert len(modules_tested) == 3
-        assert modules_tested == {"context", "goals", "skills"}
+        assert modules_tested == {"current_profile", "career_goals", "competencies"}
 
     @pytest.mark.asyncio
     async def test_backward_compatibility_fields(self):

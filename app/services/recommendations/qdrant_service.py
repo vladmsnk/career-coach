@@ -6,6 +6,7 @@ import numpy as np
 from dataclasses import dataclass
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Filter, FieldCondition, MatchValue
+from app.core.settings import settings
 
 
 @dataclass
@@ -22,10 +23,10 @@ class VacancyRecommendation:
 class QdrantService:
     """Сервис для поиска в Qdrant коллекции."""
     
-    def __init__(self, url: str = "http://localhost:6333", collection_name: str = "vacancies_tasks"):
-        self.url = url
-        self.collection_name = collection_name
-        self.client = QdrantClient(url=url)
+    def __init__(self, url: str = None, collection_name: str = None):
+        self.url = url or settings.qdrant_url
+        self.collection_name = collection_name or settings.qdrant_collection
+        self.client = QdrantClient(url=self.url)
     
     def test_connection(self) -> bool:
         """Проверяет подключение к Qdrant."""

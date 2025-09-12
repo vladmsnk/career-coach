@@ -59,7 +59,8 @@ nano .env.prod
 **Важно заполнить:**
 - `POSTGRES_PASSWORD` - надежный пароль для БД
 - `SECRET_KEY` - секретный ключ для JWT (минимум 32 символа)
-- `OPENAI_API_KEY` - ключ OpenAI API (если нужны рекомендации)
+- `YANDEX_GPT_API_KEY` - ключ Yandex GPT API (если нужны рекомендации)
+- `YANDEX_GPT_FOLDER_ID` - ID папки в Yandex Cloud (если нужны рекомендации)
 
 ### 3. Подготовка данных вакансий (опционально)
 

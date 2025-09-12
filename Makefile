@@ -216,7 +216,8 @@ env-example:
 		echo "DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/chat_service" >> .env; \
 		echo "SECRET_KEY=changeme" >> .env; \
 		echo "ENABLE_VACANCY_RECOMMENDATIONS=false" >> .env; \
- \
+		echo "YANDEX_GPT_API_KEY=" >> .env; \
+		echo "YANDEX_GPT_FOLDER_ID=" >> .env; \
 		echo "QDRANT_URL=http://localhost:6333" >> .env; \
 		echo "QDRANT_COLLECTION=vacancies_tasks" >> .env; \
 		echo "$(GREEN)✅ Файл .env создан$(RESET)"; \

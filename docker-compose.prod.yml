@@ -32,7 +32,7 @@ services:
       QDRANT__SERVICE__MAX_WORKERS: 4
       QDRANT__LOG_LEVEL: INFO
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:6333/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:6333/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -48,15 +48,23 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-chat_service}
       SECRET_KEY: ${SECRET_KEY:-changeme}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      YANDEX_GPT_API_KEY: ${YANDEX_GPT_API_KEY:-}
+      YANDEX_GPT_FOLDER_ID: ${YANDEX_GPT_FOLDER_ID:-}
       QDRANT_URL: http://qdrant:6333
       QDRANT_COLLECTION: ${QDRANT_COLLECTION:-vacancies_tasks}
       ENABLE_VACANCY_RECOMMENDATIONS: ${ENABLE_VACANCY_RECOMMENDATIONS:-false}
       APP_ENV: production
       PYTHONPATH: /app
     volumes:
-      # Mount embeddings file if it exists
-      - ./vacancies_with_embeddings.pickle:/app/vacancies_with_embeddings.pickle:ro
+      # Mount source data file for embeddings generation
+      - ./scored_vacs.pickle:/app/scored_vacs.pickle:ro
+      # Mount vacancies CSV file for VacancyService
+      - ./vacancies_sample.csv:/app/vacancies_sample.csv:ro
+      # Mount embeddings files if they exist
+      - ./vacancies_with_embeddings.pickle:/app/vacancies_with_embeddings.pickle
+      - ./vacancies_with_embeddings_test.pickle:/app/vacancies_with_embeddings_test.pickle
+      # Mount directory for output files (for scripts)
+      - ./:/app/output
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
