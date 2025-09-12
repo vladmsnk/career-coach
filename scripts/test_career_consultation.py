@@ -69,7 +69,7 @@ async def test_career_consultation_service():
         # Получаем тестовые вакансии
         vacancies = await test_vacancy_service()
         
-        print(f"\n🤖 Отправка запроса к ChatGPT...")
+        print(f"\n🤖 Отправка запроса к Yandex GPT...")
         consultation = await consultation_service.get_career_consultation(
             user_data=user_data,
             vacancies=vacancies[:3]  # Используем первые 3 вакансии

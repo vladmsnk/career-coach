@@ -1,11 +1,10 @@
 """
-Сервис карьерной консультации с использованием ChatGPT
+Сервис карьерной консультации с использованием Yandex GPT
 """
 import logging
 from typing import Dict, List, Optional
-from openai import AsyncOpenAI
+from yandex_cloud_ml_sdk import YCloudML
 from tenacity import retry, wait_exponential_jitter, stop_after_attempt, retry_if_exception_type
-from openai import APIError, RateLimitError, APITimeoutError
 
 from app.core.settings import settings
 from app.services.vacancies.vacancy_service import VacancyData
@@ -13,19 +12,22 @@ from app.services.vacancies.vacancy_service import VacancyData
 logger = logging.getLogger(__name__)
 
 class CareerConsultationService:
-    """Сервис для получения карьерной консультации от ChatGPT"""
+    """Сервис для получения карьерной консультации от Yandex GPT"""
     
-    def __init__(self, model: str = "gpt-4o-mini"):
+    def __init__(self, model: str = "yandexgpt"):
         self.model = model
-        api_key = settings.openai_api_key
+        api_key = settings.yandex_gpt_api_key
+        folder_id = settings.yandex_gpt_folder_id
         if not api_key:
-            raise ValueError("OpenAI API ключ не найден в настройках")
-        self.client = AsyncOpenAI(api_key=api_key)
+            raise ValueError("Yandex GPT API ключ не найден в настройках")
+        if not folder_id:
+            raise ValueError("Yandex GPT folder_id не найден в настройках")
+        self.sdk = YCloudML(folder_id=folder_id, auth=api_key)
     
     @retry(
         wait=wait_exponential_jitter(initial=2, max=60),
         stop=stop_after_attempt(3),
-        retry=retry_if_exception_type((RateLimitError, APITimeoutError, APIError))
+        retry=retry_if_exception_type((Exception,))
     )
     async def get_career_consultation(
         self, 
@@ -43,31 +45,23 @@ class CareerConsultationService:
             Текст карьерной консультации
         """
         try:
-            # Формируем контекст для ChatGPT
+            # Формируем контекст для Yandex GPT
             user_context = self._build_user_context(user_data)
             vacancies_context = self._build_vacancies_context(vacancies)
             
-            prompt = self._build_consultation_prompt(user_context, vacancies_context)
+            system_prompt = "Ты опытный карьерный консультант в IT-сфере. Твоя задача - предоставить персонализированную карьерную консультацию на основе опыта пользователя и анализа подходящих ему вакансий."
+            user_prompt = self._build_consultation_prompt(user_context, vacancies_context)
             
-            logger.info(f"🤖 Отправляем запрос к ChatGPT ({self.model})")
+            logger.info(f"🤖 Отправляем запрос к Yandex GPT ({self.model})")
             
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Ты опытный карьерный консультант в IT-сфере. Твоя задача - предоставить персонализированную карьерную консультацию на основе опыта пользователя и анализа подходящих ему вакансий."
-                    },
-                    {
-                        "role": "user", 
-                        "content": prompt
-                    }
-                ],
-                max_tokens=1500,
-                temperature=0.7
-            )
+            messages = [
+                {"role": "system", "text": system_prompt},
+                {"role": "user", "text": user_prompt},
+            ]
             
-            consultation = response.choices[0].message.content.strip()
+            result = await self.sdk.models.completions(self.model).configure(temperature=0.5).run_async(messages)
+            
+            consultation = result.alternatives[0].text.strip()
             
             logger.info(f"✅ Получена карьерная консультация (длина: {len(consultation)} символов)")
             
@@ -78,7 +72,7 @@ class CareerConsultationService:
             return self._get_fallback_consultation()
     
     def _build_user_context(self, user_data: Dict) -> str:
-        """Формирует контекст пользователя для ChatGPT"""
+        """Формирует контекст пользователя для Yandex GPT"""
         context_parts = []
         
         # Текущий профиль
@@ -119,7 +113,7 @@ class CareerConsultationService:
         return "\n".join(context_parts)
     
     def _build_vacancies_context(self, vacancies: List[VacancyData]) -> str:
-        """Формирует контекст вакансий для ChatGPT"""
+        """Формирует контекст вакансий для Yandex GPT"""
         if not vacancies:
             return "Подходящие вакансии не найдены."
         
@@ -137,7 +131,7 @@ class CareerConsultationService:
         return "\n\n".join(vacancies_parts)
     
     def _build_consultation_prompt(self, user_context: str, vacancies_context: str) -> str:
-        """Формирует prompt для ChatGPT"""
+        """Формирует prompt для Yandex GPT"""
         return f"""
 Пожалуйста, проведи карьерную консультацию для IT-специалиста на основе следующих данных:
 
