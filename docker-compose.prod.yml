@@ -56,8 +56,13 @@ services:
       APP_ENV: production
       PYTHONPATH: /app
     volumes:
-      # Mount embeddings file if it exists
-      - ./vacancies_with_embeddings.pickle:/app/vacancies_with_embeddings.pickle:ro
+      # Mount source data file for embeddings generation
+      - ./scored_vacs.pickle:/app/scored_vacs.pickle:ro
+      # Mount embeddings files if they exist
+      - ./vacancies_with_embeddings.pickle:/app/vacancies_with_embeddings.pickle
+      - ./vacancies_with_embeddings_test.pickle:/app/vacancies_with_embeddings_test.pickle
+      # Mount directory for output files (for scripts)
+      - ./:/app/output
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -81,6 +86,67 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  # Генерация эмбеддингов
+  generate-embeddings:
+    build: .
+    depends_on:
+      qdrant:
+        condition: service_started
+    environment:
+      YANDEX_GPT_API_KEY: ${YANDEX_GPT_API_KEY:-}
+      YANDEX_GPT_FOLDER_ID: ${YANDEX_GPT_FOLDER_ID:-}
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-vacancies_tasks}
+      PYTHONPATH: /app
+      AUTO_CONFIRM: "true"  # Автоподтверждение для Docker
+    volumes:
+      - ./:/app
+    working_dir: /app
+    command: python scripts/generate_embeddings.py
+    profiles: ["embeddings"]
+
+  # Загрузка эмбеддингов в Qdrant
+  load-to-qdrant:
+    build: .
+    depends_on:
+      qdrant:
+        condition: service_started
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-vacancies_tasks}
+      PYTHONPATH: /app
+    volumes:
+      - ./:/app
+    working_dir: /app
+    command: python scripts/load_to_qdrant.py
+    profiles: ["embeddings"]
+
+  # Полный пайплайн эмбеддингов
+  embeddings-pipeline:
+    build: .
+    depends_on:
+      qdrant:
+        condition: service_started
+    environment:
+      YANDEX_GPT_API_KEY: ${YANDEX_GPT_API_KEY:-}
+      YANDEX_GPT_FOLDER_ID: ${YANDEX_GPT_FOLDER_ID:-}
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-vacancies_tasks}
+      PYTHONPATH: /app
+      AUTO_CONFIRM: "true"
+    volumes:
+      - ./:/app
+    working_dir: /app
+    command: >
+      sh -c "
+      echo '🚀 Запуск полного пайплайна эмбеддингов' &&
+      python scripts/generate_embeddings.py &&
+      echo '✅ Генерация завершена, загружаем в Qdrant...' &&
+      python scripts/load_to_qdrant.py &&
+      echo '🎉 Пайплайн завершен!'
+      "
+    profiles: ["embeddings"]
 
 volumes:
   postgres_data:
