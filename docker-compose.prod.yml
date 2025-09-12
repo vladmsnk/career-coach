@@ -58,6 +58,8 @@ services:
     volumes:
       # Mount source data file for embeddings generation
       - ./scored_vacs.pickle:/app/scored_vacs.pickle:ro
+      # Mount vacancies CSV file for VacancyService
+      - ./vacancies_sample.csv:/app/vacancies_sample.csv:ro
       # Mount embeddings files if they exist
       - ./vacancies_with_embeddings.pickle:/app/vacancies_with_embeddings.pickle
       - ./vacancies_with_embeddings_test.pickle:/app/vacancies_with_embeddings_test.pickle
