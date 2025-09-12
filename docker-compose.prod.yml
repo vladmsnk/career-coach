@@ -48,7 +48,8 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-chat_service}
       SECRET_KEY: ${SECRET_KEY:-changeme}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      YANDEX_GPT_API_KEY: ${YANDEX_GPT_API_KEY:-}
+      YANDEX_GPT_FOLDER_ID: ${YANDEX_GPT_FOLDER_ID:-}
       QDRANT_URL: http://qdrant:6333
       QDRANT_COLLECTION: ${QDRANT_COLLECTION:-vacancies_tasks}
       ENABLE_VACANCY_RECOMMENDATIONS: ${ENABLE_VACANCY_RECOMMENDATIONS:-false}

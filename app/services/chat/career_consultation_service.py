@@ -1,6 +1,8 @@
 """
 Сервис карьерной консультации с использованием Yandex GPT
 """
+import asyncio
+import functools
 import logging
 from typing import Dict, List, Optional
 from yandex_cloud_ml_sdk import YCloudML
@@ -59,7 +61,13 @@ class CareerConsultationService:
                 {"role": "user", "text": user_prompt},
             ]
             
-            result = await self.sdk.models.completions(self.model).configure(temperature=0.5).run_async(messages)
+            # Используем синхронный вызов через executor для совместимости с async
+            loop = asyncio.get_event_loop()
+            gpt_model = self.sdk.models.completions(self.model).configure(temperature=0.5)
+            result = await loop.run_in_executor(
+                None,
+                functools.partial(gpt_model.run, messages)
+            )
             
             consultation = result.alternatives[0].text.strip()
             
